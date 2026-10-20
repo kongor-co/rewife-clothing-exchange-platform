@@ -14,13 +14,17 @@ export function AppShell() {
     <div className="app-shell">
       {useEmulators ? <div className="emulator-banner">Local emulator mode</div> : null}
       <header className="site-header">
-        <NavLink className="brand" to="/browse" aria-label="rewife home">rewife</NavLink>
-        <nav aria-label="Primary navigation">
-          {links.map(([to, label]) => (
-            <NavLink key={to} to={to}>{label}</NavLink>
-          ))}
-          <button className="link-button" type="button" onClick={() => signOut(auth)}>Sign out</button>
-        </nav>
+        <div className="site-header-inner">
+          <div className="site-header-top">
+            <NavLink className="brand" to="/browse" aria-label="rewife home">rewife</NavLink>
+            <button className="sign-out-button" type="button" onClick={() => signOut(auth)}>Sign out</button>
+          </div>
+          <nav aria-label="Primary navigation">
+            {links.map(([to, label]) => (
+              <NavLink key={to} to={to}>{label}</NavLink>
+            ))}
+          </nav>
+        </div>
       </header>
       <main><Outlet /></main>
       <footer className="site-footer">
