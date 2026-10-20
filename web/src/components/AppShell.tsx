@@ -4,8 +4,7 @@ import { auth, useEmulators } from "../lib/firebase";
 
 const links = [
   ["/browse", "Browse"],
-  ["/items/new", "Add garment"],
-  ["/my/items", "My garments"],
+  ["/my/items", "Wardrobe"],
   ["/my/exchanges", "Exchanges"],
   ["/profile", "Profile"],
 ];
