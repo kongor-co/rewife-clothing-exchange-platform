@@ -51,6 +51,11 @@ export const updateDraft = onCall({ region }, async (request) => {
     return invalidInput(error);
   }
   const itemRef = firestore.collection("clothingItems").doc(itemId);
+  validateOwnedImagePaths(item.imagePaths, identity.uid, itemId);
+  const existence = await Promise.all(item.imagePaths.map((path) => adminStorage.bucket().file(path).exists()));
+  if (existence.some(([exists]) => !exists)) {
+    throw new HttpsError("failed-precondition", "One or more garment photos are missing.");
+  }
   await firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(itemRef);
     if (!snapshot.exists) {
@@ -59,14 +64,8 @@ export const updateDraft = onCall({ region }, async (request) => {
     if (snapshot.get("ownerId") !== identity.uid) {
       throw new HttpsError("permission-denied", "Only the owner can edit this garment.");
     }
-    if (snapshot.get("status") !== "DRAFT") {
-      throw new HttpsError("failed-precondition", "Only drafts can be edited.");
-    }
-    for (const path of item.imagePaths) {
-      const prefix = `itemImages/${identity.uid}/${itemId}/`;
-      if (!path.startsWith(prefix)) {
-        throw new HttpsError("invalid-argument", "A photo path is outside this garment folder.");
-      }
+    if (!["DRAFT", "AVAILABLE"].includes(snapshot.get("status") as string)) {
+      throw new HttpsError("failed-precondition", "Only draft or available garments can be edited.");
     }
     transaction.update(itemRef, { ...item, updatedAt: FieldValue.serverTimestamp() });
   });
@@ -149,12 +148,20 @@ export const withdrawItem = onCall({ region }, async (request) => {
       throw new HttpsError("not-found", "Garment not found.");
     }
     if (snapshot.get("ownerId") !== identity.uid) {
-      throw new HttpsError("permission-denied", "Only the owner can withdraw this garment.");
+      throw new HttpsError("permission-denied", "Only the owner can delete this garment.");
     }
     if (!["DRAFT", "AVAILABLE"].includes(snapshot.get("status") as string)) {
-      throw new HttpsError("failed-precondition", "This garment cannot be withdrawn now.");
+      throw new HttpsError("failed-precondition", "This garment cannot be deleted while it is part of an exchange.");
     }
-    transaction.update(itemRef, { status: "WITHDRAWN", publishedAt: null, updatedAt: FieldValue.serverTimestamp() });
+    if (snapshot.get("activeExchangeId") !== null) {
+      throw new HttpsError("failed-precondition", "This garment cannot be deleted while it is part of an exchange.");
+    }
+    transaction.update(itemRef, {
+      status: "DELETED",
+      deletedAt: FieldValue.serverTimestamp(),
+      publishedAt: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
   });
-  return { itemId, status: "WITHDRAWN" };
+  return { itemId, status: "DELETED" };
 });

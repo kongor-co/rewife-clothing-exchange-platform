@@ -4,7 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { createDraft, publishItem, updateDraft } from "../lib/callables";
 import { readableError } from "../lib/errors";
 import { storage } from "../lib/firebase";
-import { categories, conditions, fabrics, humanize, type ItemInput } from "../types";
+import { resolveImage } from "../lib/images";
+import { categories, conditions, fabrics, humanize, type ClothingItem, type ItemInput } from "../types";
 
 const initialItem: ItemInput = {
   title: "",
@@ -18,13 +19,32 @@ const initialItem: ItemInput = {
 };
 
 interface AddGarmentModalProps {
+  item?: ClothingItem;
   onClose: () => void;
-  onCreated: (itemId: string) => void;
+  onSaved: (itemId: string) => void;
 }
 
-export function AddGarmentModal({ onClose, onCreated }: AddGarmentModalProps) {
+function itemToInput(item?: ClothingItem): ItemInput {
+  if (!item) {
+    return initialItem;
+  }
+  return {
+    title: item.title,
+    category: item.category,
+    size: item.size,
+    condition: item.condition,
+    mainFabric: item.mainFabric,
+    description: item.description,
+    compositionText: item.compositionText,
+    imagePaths: item.imagePaths,
+  };
+}
+
+export function AddGarmentModal({ item: existingItem, onClose, onSaved }: AddGarmentModalProps) {
   const { user } = useAuth();
-  const [item, setItem] = useState<ItemInput>(initialItem);
+  const [item, setItem] = useState<ItemInput>(() => itemToInput(existingItem));
+  const [existingImagePaths, setExistingImagePaths] = useState<string[]>(existingItem?.imagePaths || []);
+  const [existingImageUrls, setExistingImageUrls] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
@@ -46,12 +66,28 @@ export function AddGarmentModal({ onClose, onCreated }: AddGarmentModalProps) {
     };
   }, [busy, onClose]);
 
+  useEffect(() => {
+    let active = true;
+    Promise.all(existingImagePaths.map(async (path) => [path, await resolveImage(path)] as const)).then((entries) => {
+      if (active) {
+        setExistingImageUrls(Object.fromEntries(entries.filter((entry) => Boolean(entry[1]))) as Record<string, string>);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [existingImagePaths]);
+
   function updateField(field: keyof ItemInput, value: string) {
     setItem((current) => ({ ...current, [field]: value }));
   }
 
   function chooseFiles(selectedFiles: FileList | null) {
-    const nextFiles = Array.from(selectedFiles || []).slice(0, 5);
+    const nextFiles = Array.from(selectedFiles || []);
+    if (existingImagePaths.length + nextFiles.length > 5) {
+      setError(`You can add ${5 - existingImagePaths.length} more photos.`);
+      return;
+    }
     const invalid = nextFiles.find((file) => file.size > 3 * 1024 * 1024 || !["image/jpeg", "image/png", "image/webp"].includes(file.type));
     if (invalid) {
       setError("Each photo must be a JPEG, PNG, or WebP file no larger than 3 MB.");
@@ -59,6 +95,16 @@ export function AddGarmentModal({ onClose, onCreated }: AddGarmentModalProps) {
     }
     setError("");
     setFiles(nextFiles);
+  }
+
+  function removeExistingPhoto(path: string) {
+    setExistingImagePaths((current) => current.filter((candidate) => candidate !== path));
+    setError("");
+  }
+
+  function removeNewPhoto(index: number) {
+    setFiles((current) => current.filter((_, candidateIndex) => candidateIndex !== index));
+    setError("");
   }
 
   function requestClose() {
@@ -76,31 +122,36 @@ export function AddGarmentModal({ onClose, onCreated }: AddGarmentModalProps) {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!user) {
-      setError("Sign in before creating a garment.");
+      setError("Sign in before saving a garment.");
       return;
     }
-    if (files.length === 0) {
+    if (existingImagePaths.length + files.length === 0) {
       setError("Add at least one garment photo.");
       return;
     }
     setBusy(true);
     setError("");
     try {
-      setProgress("Creating draft...");
-      const draft = await createDraft(item);
-      const itemId = draft.data.itemId;
-      const imagePaths: string[] = [];
+      let itemId = existingItem?.id;
+      if (!itemId) {
+        setProgress("Creating draft...");
+        const draft = await createDraft(item);
+        itemId = draft.data.itemId;
+      }
+      const imagePaths = [...existingImagePaths];
       for (const file of files) {
         const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
         const path = `itemImages/${user.uid}/${itemId}/${crypto.randomUUID()}.${extension}`;
         imagePaths.push(path);
-        setProgress(`Uploading photo ${imagePaths.length} of ${files.length}...`);
+        setProgress(`Uploading new photo ${imagePaths.length - existingImagePaths.length} of ${files.length}...`);
         await uploadBytes(ref(storage, path), file, { contentType: file.type });
       }
-      setProgress("Publishing garment...");
+      setProgress(existingItem ? "Saving changes..." : "Publishing garment...");
       await updateDraft({ itemId, item: { ...item, imagePaths } });
-      await publishItem({ itemId });
-      onCreated(itemId);
+      if (!existingItem) {
+        await publishItem({ itemId });
+      }
+      onSaved(itemId);
     } catch (caught) {
       setError(readableError(caught));
     } finally {
@@ -109,14 +160,16 @@ export function AddGarmentModal({ onClose, onCreated }: AddGarmentModalProps) {
     }
   }
 
+  const editing = Boolean(existingItem);
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={handleBackdropClick}>
-      <section className="garment-modal panel" role="dialog" aria-modal="true" aria-labelledby="add-garment-title">
+      <section className="garment-modal panel" role="dialog" aria-modal="true" aria-labelledby="garment-form-title">
         <header className="modal-header">
-          <div><p className="eyebrow">Contribute</p><h2 id="add-garment-title">Add a garment</h2></div>
-          <button className="modal-close" type="button" onClick={requestClose} disabled={busy} aria-label="Close add garment form">Close</button>
+          <div><p className="eyebrow">{editing ? "Update" : "Contribute"}</p><h2 id="garment-form-title">{editing ? "Edit garment" : "Add a garment"}</h2></div>
+          <button className="modal-close" type="button" onClick={requestClose} disabled={busy} aria-label="Close garment form">Close</button>
         </header>
-        <p className="modal-intro">Keep it clear and honest. Every garment has the same one-coin value.</p>
+        <p className="modal-intro">{editing ? "Update the garment details or choose which photos should be visible." : "Keep it clear and honest. Every garment has the same one-coin value."}</p>
         <form className="item-form" onSubmit={submit}>
           <div className="form-grid">
             <label className="full-width">Title<input autoFocus value={item.title} minLength={3} maxLength={80} onChange={(event) => updateField("title", event.target.value)} placeholder="Blue linen shirt" required /></label>
@@ -126,14 +179,24 @@ export function AddGarmentModal({ onClose, onCreated }: AddGarmentModalProps) {
             <label>Main fabric<select value={item.mainFabric} onChange={(event) => updateField("mainFabric", event.target.value)}>{fabrics.map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label>
             <label className="full-width">Composition notes<input value={item.compositionText} maxLength={150} onChange={(event) => updateField("compositionText", event.target.value)} placeholder="100% linen" /></label>
             <label className="full-width">Description<textarea value={item.description} maxLength={500} rows={5} onChange={(event) => updateField("description", event.target.value)} placeholder="Describe fit, care, and any visible flaws." /></label>
-            <label className="full-width file-input">Photos<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => chooseFiles(event.target.files)} /><span>Choose 1 to 5 photos, up to 3 MB each.</span></label>
+            {existingImagePaths.length > 0 ? (
+              <div className="full-width existing-photo-grid" aria-label="Current garment photos">
+                {existingImagePaths.map((path, index) => (
+                  <div className="existing-photo" key={path}>
+                    {existingImageUrls[path] ? <img src={existingImageUrls[path]} alt={`Garment photo ${index + 1}`} /> : <div className="image-placeholder">Photo</div>}
+                    <button className="text-action danger" type="button" disabled={busy} onClick={() => removeExistingPhoto(path)}>Remove</button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <label className="full-width file-input">Photos<input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => chooseFiles(event.target.files)} /><span>Keep 1 to 5 photos in total, up to 3 MB each.</span></label>
           </div>
-          {files.length > 0 ? <div className="file-list">{files.map((file) => <span key={`${file.name}-${file.size}`}>{file.name}</span>)}</div> : null}
+          {files.length > 0 ? <div className="file-list">{files.map((file, index) => <span key={`${file.name}-${file.size}-${index}`}>{file.name}<button type="button" onClick={() => removeNewPhoto(index)} aria-label={`Remove ${file.name}`}>Remove</button></span>)}</div> : null}
           {error ? <p className="alert alert-error">{error}</p> : null}
           {progress ? <p className="alert alert-info">{progress}</p> : null}
           <div className="modal-actions">
             <button className="button button-secondary" type="button" disabled={busy} onClick={requestClose}>Cancel</button>
-            <button className="button" disabled={busy}>{busy ? "Working..." : "Publish garment"}</button>
+            <button className="button" disabled={busy}>{busy ? "Working..." : editing ? "Save changes" : "Publish garment"}</button>
           </div>
         </form>
       </section>

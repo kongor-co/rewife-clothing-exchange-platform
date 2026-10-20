@@ -33,7 +33,7 @@ export const fabrics = [
 export type Category = (typeof categories)[number];
 export type Condition = (typeof conditions)[number];
 export type Fabric = (typeof fabrics)[number];
-export type ItemStatus = "DRAFT" | "AVAILABLE" | "RESERVED" | "EXCHANGED" | "WITHDRAWN";
+export type ItemStatus = "DRAFT" | "AVAILABLE" | "RESERVED" | "EXCHANGED" | "WITHDRAWN" | "DELETED";
 export type ExchangeStatus = "REQUESTED" | "ACCEPTED" | "DISPUTED" | "COMPLETED" | "CANCELLED";
 
 export interface ClothingItem {
@@ -51,6 +51,7 @@ export interface ClothingItem {
   status: ItemStatus;
   activeExchangeId: string | null;
   publishedAt: Timestamp | null;
+  deletedAt?: Timestamp | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
