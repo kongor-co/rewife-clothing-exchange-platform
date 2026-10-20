@@ -114,6 +114,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .item-description { margin: 1.5rem 0; color: var(--muted); line-height: 1.65; white-space: pre-line; }
 .request-box { display: grid; gap: 1rem; margin-top: 1.5rem; padding: 1.2rem; border-radius: 1rem; background: #edf2e8; }
 .request-box small { color: var(--muted); line-height: 1.5; }
+.owner-item-actions { display: grid; justify-items: start; gap: 1rem; margin-top: 1.5rem; }
+.owner-item-actions .alert { margin: 0; }
 
 .form-page { max-width: 900px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
