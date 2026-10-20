@@ -1,0 +1,81 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isVerified() {
+      return request.auth != null
+        ? request.auth.token.email_verified == true
+        : false;
+    }
+
+    function memberIsActive() {
+      return isVerified()
+        ? firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+          ? firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'ACTIVE'
+          : false
+        : false;
+    }
+
+    function itemPath(itemId) {
+      return /databases/(default)/documents/clothingItems/$(itemId);
+    }
+
+    function isItemOwner(uid, itemId) {
+      return firestore.exists(itemPath(itemId))
+        ? firestore.get(itemPath(itemId)).data.ownerId == uid
+        : false;
+    }
+
+    function itemAcceptsUpload(itemId) {
+      return firestore.get(itemPath(itemId)).data.status in ['DRAFT', 'AVAILABLE'];
+    }
+
+    function validImage() {
+      return request.resource.size <= 3 * 1024 * 1024
+        ? request.resource.contentType.matches('image/(jpeg|png|webp)')
+        : false;
+    }
+
+    function exchangeAllowsRead(itemData) {
+      return itemData.activeExchangeId is string
+        ? firestore.exists(/databases/(default)/documents/exchanges/$(itemData.activeExchangeId))
+          ? firestore.get(/databases/(default)/documents/exchanges/$(itemData.activeExchangeId)).data.contributorId == request.auth.uid ||
+            firestore.get(/databases/(default)/documents/exchanges/$(itemData.activeExchangeId)).data.claimantId == request.auth.uid
+          : false
+        : false;
+    }
+
+    function canReadItemImage(uid, itemId) {
+      return memberIsActive()
+        ? isItemOwner(uid, itemId)
+          ? uid == request.auth.uid || firestore.get(itemPath(itemId)).data.status == 'AVAILABLE' || exchangeAllowsRead(firestore.get(itemPath(itemId)).data)
+          : false
+        : false;
+    }
+
+    match /itemImages/{uid}/{itemId}/{fileName} {
+      allow read: if canReadItemImage(uid, itemId);
+      allow create: if memberIsActive()
+        ? request.auth.uid == uid
+          ? isItemOwner(uid, itemId)
+            ? itemAcceptsUpload(itemId)
+              ? validImage()
+              : false
+            : false
+          : false
+        : false;
+      allow delete: if memberIsActive()
+        ? request.auth.uid == uid
+          ? isItemOwner(uid, itemId)
+            ? itemAcceptsUpload(itemId)
+            : false
+          : false
+        : false;
+      allow update: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

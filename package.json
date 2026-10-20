@@ -1,0 +1,25 @@
+{
+  "name": "rewife",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "web",
+    "functions"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run check --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:rules": "npx -y firebase-tools@latest emulators:exec --only firestore --project demo-rewife \"npm run test:rules -w web\"",
+    "test:smoke": "node scripts/emulator-smoke.cjs",
+    "emulators": "npx -y firebase-tools@latest emulators:start --project demo-rewife",
+    "emulators:export": "npx -y firebase-tools@latest emulators:export .firebase-data --project demo-rewife --force"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.13.6"
+  }
+}

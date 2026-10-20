@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "ordinal-bucksaw-512007-p8",
+    "production": "ordinal-bucksaw-512007-p8",
+    "demo": "demo-rewife"
+  }
+}

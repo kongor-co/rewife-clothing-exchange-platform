@@ -1,0 +1,224 @@
+rules_version = '2';
+
+// Assumed data model
+// users/{uid}: public displayName, status, createdAt, updatedAt. No email or private data.
+// clothingItems/{itemId}: owner, validated garment metadata, image paths, state, timestamps.
+// exchanges/{exchangeId}: participant IDs, item reference, state, consent, resolution data.
+// coinAccounts/{uid}: integer available and reserved balances with timestamps.
+// coinEvents/{eventId}: immutable ledger event with affectedUserIds and optional exchangeId.
+// operations/{operationId}: private server idempotency record.
+// adminEvents/{eventId}: private server audit record.
+// All writes are performed by trusted callable Functions. Browser writes are denied.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isAuthenticated()
+        ? request.auth.token.email_verified == true
+        : false;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function isActiveMember() {
+      return isVerified()
+        ? exists(userPath(request.auth.uid))
+          ? get(userPath(request.auth.uid)).data.status == 'ACTIVE'
+          : false
+        : false;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated()
+        ? request.auth.uid == userId
+        : false;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated()
+        ? request.auth.uid == resource.data.uid
+        : false;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data)
+        ? true
+        : request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data)
+        ? true
+        : request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(data, ['displayName', 'status', 'createdAt', 'updatedAt'])
+        ? hasRequiredFields(data, ['displayName', 'status', 'createdAt', 'updatedAt'])
+          ? data.displayName is string
+            ? data.displayName.size() >= 2
+              ? data.displayName.size() <= 50
+                ? data.status in ['ACTIVE', 'SUSPENDED', 'DEACTIVATED']
+                  ? data.createdAt is timestamp
+                    ? data.updatedAt is timestamp
+                    : false
+                  : false
+                : false
+              : false
+            : false
+          : false
+        : false;
+    }
+
+    function validString(value, minimum, maximum) {
+      return value is string
+        ? value.size() >= minimum
+          ? value.size() <= maximum
+          : false
+        : false;
+    }
+
+    function validItemIdentity(data) {
+      return validString(data.ownerId, 1, 128)
+        ? validString(data.ownerDisplayName, 2, 50)
+        : false;
+    }
+
+    function validItemText(data) {
+      return validString(data.title, 3, 80)
+        ? validString(data.size, 1, 20)
+          ? validString(data.description, 0, 500)
+            ? validString(data.compositionText, 0, 150)
+            : false
+          : false
+        : false;
+    }
+
+    function validItemEnums(data) {
+      return data.category in ['TOP', 'BOTTOM', 'DRESS', 'OUTERWEAR', 'SHOES', 'ACCESSORY', 'OTHER']
+        ? data.condition in ['NEW', 'VERY_GOOD', 'GOOD']
+          ? data.mainFabric in ['COTTON', 'LINEN', 'WOOL', 'SILK', 'HEMP', 'VISCOSE', 'LYOCELL', 'MODAL', 'POLYESTER', 'POLYAMIDE', 'ACRYLIC', 'ELASTANE', 'MIXED', 'OTHER', 'UNKNOWN']
+            ? data.status in ['DRAFT', 'AVAILABLE', 'RESERVED', 'EXCHANGED', 'WITHDRAWN']
+            : false
+          : false
+        : false;
+    }
+
+    function validItemImages(data) {
+      return data.imagePaths is list
+        ? data.imagePaths.size() <= 5
+        : false;
+    }
+
+    function validItemTimestamps(data) {
+      return data.createdAt is timestamp
+        ? data.updatedAt is timestamp
+          ? data.publishedAt == null || data.publishedAt is timestamp
+          : false
+        : false;
+    }
+
+    function isValidClothingItem(data) {
+      return hasOnlyAllowedFields(data, [
+        'ownerId', 'ownerDisplayName', 'title', 'category', 'size', 'condition',
+        'mainFabric', 'description', 'compositionText', 'imagePaths', 'status',
+        'activeExchangeId', 'publishedAt', 'createdAt', 'updatedAt'
+      ])
+        ? hasRequiredFields(data, [
+          'ownerId', 'ownerDisplayName', 'title', 'category', 'size', 'condition',
+          'mainFabric', 'description', 'compositionText', 'imagePaths', 'status',
+          'activeExchangeId', 'publishedAt', 'createdAt', 'updatedAt'
+        ])
+          ? validItemIdentity(data)
+            ? validItemText(data)
+              ? validItemEnums(data)
+                ? validItemImages(data)
+                  ? validItemTimestamps(data)
+                  : false
+                : false
+              : false
+            : false
+          : false
+        : false;
+    }
+
+    function isExchangeParticipant(data) {
+      return isAuthenticated()
+        ? data.contributorId == request.auth.uid || data.claimantId == request.auth.uid
+        : false;
+    }
+
+    function activeExchangeAllowsRead(data) {
+      return data.activeExchangeId is string
+        ? exists(/databases/$(database)/documents/exchanges/$(data.activeExchangeId))
+          ? isExchangeParticipant(get(/databases/$(database)/documents/exchanges/$(data.activeExchangeId)).data)
+          : false
+        : false;
+    }
+
+    function canReadItem(data) {
+      return isActiveMember()
+        ? data.status == 'AVAILABLE' || data.ownerId == request.auth.uid || activeExchangeAllowsRead(data)
+        : false;
+    }
+
+    match /users/{uid} {
+      allow read: if isActiveMember()
+        ? isOwner(uid)
+        : false;
+      allow create, update, delete: if false;
+    }
+
+    match /clothingItems/{itemId} {
+      allow read: if canReadItem(resource.data);
+      allow create, update, delete: if false;
+    }
+
+    match /exchanges/{exchangeId} {
+      allow read: if isActiveMember()
+        ? isExchangeParticipant(resource.data)
+        : false;
+      allow create, update, delete: if false;
+    }
+
+    match /coinAccounts/{uid} {
+      allow read: if isActiveMember()
+        ? isOwner(uid)
+        : false;
+      allow create, update, delete: if false;
+    }
+
+    match /coinEvents/{eventId} {
+      allow read: if isActiveMember()
+        ? request.auth.uid in resource.data.affectedUserIds
+        : false;
+      allow create, update, delete: if false;
+    }
+
+    match /operations/{operationId} {
+      allow read, write: if false;
+    }
+
+    match /adminEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
