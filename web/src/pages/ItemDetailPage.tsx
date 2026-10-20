@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { claimItem } from "../lib/callables";
+import { claimItem, publishItem } from "../lib/callables";
 import { clothingItemFromDoc } from "../lib/documents";
 import { readableError } from "../lib/errors";
 import { db } from "../lib/firebase";
@@ -57,6 +57,21 @@ export function ItemDetailPage() {
     }
   }
 
+  async function publishOwnedItem() {
+    if (!item || item.status !== "DRAFT") {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await publishItem({ itemId: item.id });
+    } catch (caught) {
+      setError(readableError(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!item) {
     return <div className="page-state">Loading garment...</div>;
   }
@@ -80,15 +95,20 @@ export function ItemDetailPage() {
           <div><dt>Contributor</dt><dd>{item.ownerDisplayName}</dd></div>
         </dl>
         {item.description ? <p className="item-description">{item.description}</p> : null}
+        {error ? <p className="alert alert-error">{error}</p> : null}
         {canRequest ? (
           <div className="request-box">
             <label className="checkbox-label"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />If accepted, I agree to share my verified email with the contributor.</label>
-            {error ? <p className="alert alert-error">{error}</p> : null}
             <button className="button" type="button" disabled={!consent || busy} onClick={requestItem}>{busy ? "Requesting..." : "Request for 1 coin"}</button>
             <small>One coin is reserved now. Delivery arrangements stay between you and the contributor.</small>
           </div>
         ) : null}
-        {isOwner ? <p className="alert alert-info">This is your garment.</p> : null}
+        {isOwner ? (
+          <div className="owner-item-actions">
+            <p className="alert alert-info">This is your garment.</p>
+            {item.status === "DRAFT" ? <button className="button" type="button" disabled={busy} onClick={publishOwnedItem}>{busy ? "Publishing..." : "Publish garment"}</button> : null}
+          </div>
+        ) : null}
       </section>
     </div>
   );
