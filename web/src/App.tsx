@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthPage } from "./pages/AuthPage";
@@ -6,7 +6,6 @@ import { BrowsePage } from "./pages/BrowsePage";
 import { ExchangesPage } from "./pages/ExchangesPage";
 import { HomePage } from "./pages/HomePage";
 import { ItemDetailPage } from "./pages/ItemDetailPage";
-import { ItemFormPage } from "./pages/ItemFormPage";
 import { LegalPage } from "./pages/LegalPage";
 import { MyItemsPage } from "./pages/MyItemsPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -25,7 +24,7 @@ const router = createBrowserRouter([
       element: <AppShell />,
       children: [
         { path: "/browse", element: <BrowsePage /> },
-        { path: "/items/new", element: <ItemFormPage /> },
+        { path: "/items/new", element: <Navigate to="/my/items?add=1" replace /> },
         { path: "/items/:id", element: <ItemDetailPage /> },
         { path: "/my/items", element: <MyItemsPage /> },
         { path: "/my/exchanges", element: <ExchangesPage /> },

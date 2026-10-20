@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { useNavigate, useParams } from "react-router-dom";
+import { ItemGallery } from "../components/ItemGallery";
 import { useAuth } from "../context/AuthContext";
 import { claimItem, publishItem } from "../lib/callables";
 import { clothingItemFromDoc } from "../lib/documents";
@@ -32,9 +33,15 @@ export function ItemDetailPage() {
     if (!item) {
       return;
     }
+    let active = true;
     Promise.all(item.imagePaths.map(resolveImage)).then((urls) => {
-      setImages(urls.filter((url): url is string => Boolean(url)));
+      if (active) {
+        setImages(urls.filter((url): url is string => Boolean(url)));
+      }
     });
+    return () => {
+      active = false;
+    };
   }, [item]);
 
   async function requestItem() {
@@ -81,9 +88,7 @@ export function ItemDetailPage() {
 
   return (
     <div className="page-container item-detail-page">
-      <section className="image-gallery">
-        {images.length > 0 ? images.map((url, index) => <img key={url} src={url} alt={`${item.title}, photo ${index + 1}`} />) : <div className="image-placeholder">Photo unavailable</div>}
-      </section>
+      <ItemGallery images={images} title={item.title} />
       <section className="item-details panel">
         <p className="eyebrow">{humanize(item.category)} · {item.size}</p>
         <h1>{item.title}</h1>
