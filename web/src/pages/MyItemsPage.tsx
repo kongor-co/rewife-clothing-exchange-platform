@@ -25,7 +25,7 @@ export function MyItemsPage() {
     }
     const itemQuery = query(collection(db, "clothingItems"), where("ownerId", "==", user.uid), orderBy("updatedAt", "desc"));
     return onSnapshot(itemQuery, (snapshot) => {
-      setItems(snapshot.docs.map(clothingItemFromDoc));
+      setItems(snapshot.docs.map(clothingItemFromDoc).filter((item) => !["DELETED", "WITHDRAWN"].includes(item.status)));
       setLoading(false);
     }, (caught) => {
       setError(caught.message);
@@ -67,7 +67,7 @@ export function MyItemsPage() {
       <section className="item-grid owned-item-grid" aria-live="polite">
         {items.map((item) => <OwnedItemCard key={item.id} item={item} busy={busyItemId === item.id} onPublish={() => act("publish", item.id)} onUnpublish={() => act("unpublish", item.id)} />)}
       </section>
-      {addGarmentOpen ? <AddGarmentModal onClose={closeAddGarment} onCreated={closeAddGarment} /> : null}
+      {addGarmentOpen ? <AddGarmentModal onClose={closeAddGarment} onSaved={closeAddGarment} /> : null}
     </div>
   );
 }

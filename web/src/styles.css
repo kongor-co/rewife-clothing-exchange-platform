@@ -34,6 +34,8 @@ h2 { font-size: clamp(1.35rem, 2vw, 2rem); }
 .button:disabled { cursor: not-allowed; opacity: 0.5; transform: none; }
 .button-secondary { background: transparent; color: var(--green); }
 .button-secondary:hover { background: #e8eee8; color: var(--green-dark); }
+.button-danger { border-color: #a34131; background: #a34131; }
+.button-danger:hover { background: #7e2d21; }
 .text-action, .link-button { padding: 0; border: 0; background: transparent; color: var(--green); font-weight: 700; text-decoration: underline; cursor: pointer; }
 .danger { color: #a34131; }
 
@@ -129,8 +131,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .item-description { margin: 1.5rem 0; color: var(--muted); line-height: 1.65; white-space: pre-line; }
 .request-box { display: grid; gap: 1rem; margin-top: 1.5rem; padding: 1.2rem; border-radius: 1rem; background: #edf2e8; }
 .request-box small { color: var(--muted); line-height: 1.5; }
-.owner-item-actions { display: grid; justify-items: start; gap: 1rem; margin-top: 1.5rem; }
-.owner-item-actions .alert { margin: 0; }
+.owner-item-actions { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.owner-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.owner-action-row .button { width: 100%; }
+.delete-confirmation { display: grid; gap: 0.8rem; padding: 1rem; border: 1px solid #e8b8aa; border-radius: 1rem; background: #f9e8e2; }
+.delete-confirmation p { margin: 0; color: #6d3a31; line-height: 1.5; }
+.delete-confirmation > div { display: flex; flex-wrap: wrap; gap: 0.7rem; }
 
 .form-page { max-width: 900px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -139,7 +145,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .file-input input { padding: 0.6rem; }
 .file-input span { color: var(--muted); font-weight: 500; }
 .file-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.file-list span { padding: 0.45rem 0.7rem; border-radius: 999px; background: #e8eee8; font-size: 0.8rem; }
+.file-list span { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.7rem; border-radius: 999px; background: #e8eee8; font-size: 0.8rem; }
+.file-list button { padding: 0; border: 0; background: transparent; color: #a34131; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+.existing-photo-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.7rem; }
+.existing-photo { display: grid; gap: 0.45rem; }
+.existing-photo img, .existing-photo .image-placeholder { width: 100%; aspect-ratio: 1; border-radius: 0.7rem; object-fit: cover; background: #e5e8df; }
+.existing-photo .text-action { justify-self: start; font-size: 0.8rem; }
 
 .modal-open { overflow: hidden; }
 .modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; overflow-y: auto; padding: 2rem; background: rgba(18, 45, 37, 0.68); backdrop-filter: blur(8px); }
@@ -200,6 +211,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
   .page-heading { display: block; }
   .page-heading > p, .page-heading > .button { margin-top: 1rem; }
   .filters, .item-grid, .form-grid { grid-template-columns: 1fr; }
+  .existing-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .owner-action-row { grid-template-columns: 1fr; }
   .modal-backdrop { padding: 0; }
   .garment-modal { min-height: 100vh; border: 0; border-radius: 0; }
   .modal-actions { flex-direction: column-reverse; }

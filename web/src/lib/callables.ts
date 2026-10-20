@@ -25,7 +25,7 @@ export const unpublishItem = httpsCallable<{ itemId: string }, { itemId: string;
   functions,
   "unpublishItem",
 );
-export const withdrawItem = httpsCallable<{ itemId: string }, { itemId: string; status: string }>(
+export const deleteItem = httpsCallable<{ itemId: string }, { itemId: string; status: string }>(
   functions,
   "withdrawItem",
 );
