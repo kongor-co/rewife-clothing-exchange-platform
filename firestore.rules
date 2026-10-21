@@ -170,12 +170,14 @@ service cloud.firestore {
         : false;
     }
 
-    function canReadItem(data) {
-      return data.status == 'AVAILABLE'
-        ? true
-        : isActiveMember()
-          ? data.ownerId == request.auth.uid || activeExchangeAllowsRead(data)
-          : false;
+    function canReadMemberItem(data) {
+      return isActiveMember()
+        ? data.ownerId == request.auth.uid || activeExchangeAllowsRead(data)
+        : false;
+    }
+
+    function isPublicItem(data) {
+      return data.status == 'AVAILABLE';
     }
 
     match /users/{uid} {
@@ -186,7 +188,8 @@ service cloud.firestore {
     }
 
     match /clothingItems/{itemId} {
-      allow read: if canReadItem(resource.data);
+      allow read: if canReadMemberItem(resource.data);
+      allow read: if isPublicItem(resource.data);
       allow create, update, delete: if false;
     }
 
