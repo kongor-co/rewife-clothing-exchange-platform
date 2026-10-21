@@ -8,7 +8,31 @@ import {
 } from "./garmentOptions";
 import { humanize } from "./types";
 import { exchangeActivityLabel, isActionableExchange } from "./lib/exchangeActivity";
+import {
+  coinMovementLabel,
+  exchangeHasContactAccess,
+  exchangeMatchesFilters,
+  exchangeStatusLabel,
+} from "./lib/exchangePresentation";
 import { authPath, returnPathFromSearch, safeInternalPath, verifyEmailPath } from "./lib/navigation";
+import type { Exchange } from "./types";
+
+const exchangeFixture = {
+  id: "exchange-1",
+  itemId: "item-1",
+  itemTitle: "Linen shirt",
+  contributorId: "contributor",
+  claimantId: "claimant",
+  status: "REQUESTED",
+  consentFlags: {
+    claimantContactDisclosure: true,
+    contributorContactDisclosure: false,
+  },
+  cancellationReason: null,
+  disputeReason: null,
+  createdAt: { toMillis: () => 1 },
+  updatedAt: { toMillis: () => 2 },
+} as Exchange;
 
 describe("display helpers", () => {
   it("turns enum values into readable labels", () => {
@@ -29,6 +53,33 @@ describe("exchange activity", () => {
   it("provides an accessible singular or plural label", () => {
     expect(exchangeActivityLabel(1)).toBe("1 exchange needs your action");
     expect(exchangeActivityLabel(3)).toBe("3 exchanges need your action");
+  });
+});
+
+describe("exchange presentation", () => {
+  it("separates incoming requests from my requests", () => {
+    expect(exchangeMatchesFilters(exchangeFixture, "claimant", "OUTGOING", "ALL")).toBe(true);
+    expect(exchangeMatchesFilters(exchangeFixture, "claimant", "INCOMING", "ALL")).toBe(false);
+    expect(exchangeMatchesFilters(exchangeFixture, "contributor", "INCOMING", "REQUESTED")).toBe(true);
+  });
+
+  it("distinguishes rejected, confirmed, and completed views", () => {
+    const rejected = { ...exchangeFixture, status: "CANCELLED", cancellationReason: "CONTRIBUTOR_REJECTED" } as Exchange;
+    const completed = { ...exchangeFixture, status: "COMPLETED" } as Exchange;
+    expect(exchangeMatchesFilters(rejected, "claimant", "ALL", "REJECTED")).toBe(true);
+    expect(exchangeMatchesFilters(completed, "claimant", "ALL", "CONFIRMED")).toBe(true);
+    expect(exchangeMatchesFilters(completed, "claimant", "ALL", "COMPLETED")).toBe(false);
+    expect(exchangeMatchesFilters(completed, "contributor", "ALL", "COMPLETED")).toBe(true);
+    expect(exchangeStatusLabel(completed, "claimant")).toBe("Confirmed received");
+  });
+
+  it("describes coin movement and contact availability", () => {
+    const accepted = { ...exchangeFixture, status: "ACCEPTED" } as Exchange;
+    const completed = { ...exchangeFixture, status: "COMPLETED" } as Exchange;
+    expect(coinMovementLabel(accepted, "claimant")).toBe("1 coin held until receipt");
+    expect(coinMovementLabel(completed, "contributor")).toBe("+1 coin received");
+    expect(exchangeHasContactAccess(exchangeFixture)).toBe(false);
+    expect(exchangeHasContactAccess(accepted)).toBe(true);
   });
 });
 

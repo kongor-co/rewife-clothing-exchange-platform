@@ -5,12 +5,21 @@ import { useAuth } from "../context/AuthContext";
 import { acceptExchange, cancelRequestedExchange, confirmReceived, getExchangeContacts, rejectExchange, reportDispute } from "../lib/callables";
 import { clothingItemFromDoc, exchangeFromDoc } from "../lib/documents";
 import { readableError } from "../lib/errors";
+import {
+  coinMovementLabel,
+  exchangeDirection,
+  exchangeHasContactAccess,
+  exchangeMatchesFilters,
+  exchangeStatusFilterOptions,
+  exchangeStatusLabel,
+  type ExchangeDirectionFilter,
+  type ExchangeStatusFilter,
+} from "../lib/exchangePresentation";
 import { db } from "../lib/firebase";
 import { resolveImage } from "../lib/images";
 import { humanize, type ClothingItem, type Exchange, type Fabric } from "../types";
 
-interface ContactCard {
-  exchangeId: string;
+interface ContactDetails {
   displayName: string;
   email: string;
 }
@@ -21,7 +30,55 @@ interface ExchangeItemDetails {
   imagePath: string | null;
 }
 
-function ExchangeItemSummary({ exchange, label }: { exchange: Exchange; label: string }) {
+function CoinIcon({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className={compact ? "exchange-coin-icon compact" : "exchange-coin-icon"} aria-hidden="true">
+      <span>1</span>
+    </span>
+  );
+}
+
+function ExchangeContact({ exchangeId }: { exchangeId: string }) {
+  const [contact, setContact] = useState<ContactDetails | null>(null);
+  const [contactError, setContactError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    getExchangeContacts({ exchangeId })
+      .then((result) => {
+        if (active) {
+          setContact({
+            displayName: result.data.counterpartyDisplayName,
+            email: result.data.counterpartyEmail,
+          });
+        }
+      })
+      .catch((caught) => {
+        if (active) {
+          setContactError(readableError(caught));
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [exchangeId]);
+
+  if (contactError) {
+    return <p className="exchange-contact-error">Contact details are temporarily unavailable.</p>;
+  }
+  if (!contact) {
+    return <p className="exchange-contact-loading">Loading contact...</p>;
+  }
+  return (
+    <address className="exchange-contact-card">
+      <span>Contact</span>
+      <strong>{contact.displayName}</strong>
+      <a href={`mailto:${contact.email}`}>{contact.email}</a>
+    </address>
+  );
+}
+
+function ExchangeItemSummary({ exchange, label, userId }: { exchange: Exchange; label: string; userId: string }) {
   const [item, setItem] = useState<ClothingItem | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
@@ -64,7 +121,7 @@ function ExchangeItemSummary({ exchange, label }: { exchange: Exchange; label: s
   return (
     <div className="exchange-card-main">
       <Link className="exchange-item-image" to={`/items/${exchange.itemId}`} aria-label={`View ${exchange.itemTitle}`}>
-        {imageUrl ? <img src={imageUrl} alt={exchange.itemTitle} onError={() => setImageUrl(null)} /> : <span>Garment</span>}
+        {imageUrl ? <img src={imageUrl} alt={exchange.itemTitle} onError={() => setImageUrl(null)} /> : <CoinIcon />}
       </Link>
       <div className="exchange-card-copy">
         <p className="eyebrow">{label}</p>
@@ -75,7 +132,7 @@ function ExchangeItemSummary({ exchange, label }: { exchange: Exchange; label: s
             {details.mainFabric ? <div><dt>Material</dt><dd>{humanize(details.mainFabric)}</dd></div> : null}
           </dl>
         ) : null}
-        <span className={`status-badge status-${exchange.status.toLowerCase()}`}>{humanize(exchange.status)}</span>
+        <span className={`status-badge status-${exchange.status.toLowerCase()}`}>{exchangeStatusLabel(exchange, userId)}</span>
         {exchange.cancellationReason ? <p>Reason: {humanize(exchange.cancellationReason)}</p> : null}
         {exchange.disputeReason ? <p>Dispute: {exchange.disputeReason}</p> : null}
       </div>
@@ -87,7 +144,10 @@ export function ExchangesPage() {
   const { user } = useAuth();
   const [incoming, setIncoming] = useState<Exchange[]>([]);
   const [outgoing, setOutgoing] = useState<Exchange[]>([]);
-  const [contact, setContact] = useState<ContactCard | null>(null);
+  const [incomingLoading, setIncomingLoading] = useState(true);
+  const [outgoingLoading, setOutgoingLoading] = useState(true);
+  const [directionFilter, setDirectionFilter] = useState<ExchangeDirectionFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<ExchangeStatusFilter>("ALL");
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
 
@@ -97,8 +157,20 @@ export function ExchangesPage() {
     }
     const incomingQuery = query(collection(db, "exchanges"), where("contributorId", "==", user.uid), orderBy("updatedAt", "desc"));
     const outgoingQuery = query(collection(db, "exchanges"), where("claimantId", "==", user.uid), orderBy("updatedAt", "desc"));
-    const stopIncoming = onSnapshot(incomingQuery, (snapshot) => setIncoming(snapshot.docs.map(exchangeFromDoc)), (caught) => setError(caught.message));
-    const stopOutgoing = onSnapshot(outgoingQuery, (snapshot) => setOutgoing(snapshot.docs.map(exchangeFromDoc)), (caught) => setError(caught.message));
+    const stopIncoming = onSnapshot(incomingQuery, (snapshot) => {
+      setIncoming(snapshot.docs.map(exchangeFromDoc));
+      setIncomingLoading(false);
+    }, (caught) => {
+      setError(caught.message);
+      setIncomingLoading(false);
+    });
+    const stopOutgoing = onSnapshot(outgoingQuery, (snapshot) => {
+      setOutgoing(snapshot.docs.map(exchangeFromDoc));
+      setOutgoingLoading(false);
+    }, (caught) => {
+      setError(caught.message);
+      setOutgoingLoading(false);
+    });
     return () => {
       stopIncoming();
       stopOutgoing();
@@ -111,6 +183,15 @@ export function ExchangesPage() {
     outgoing.forEach((exchange) => merged.set(exchange.id, exchange));
     return Array.from(merged.values()).sort((first, second) => second.updatedAt.toMillis() - first.updatedAt.toMillis());
   }, [incoming, outgoing]);
+
+  const visibleExchanges = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+    return exchanges.filter((exchange) => exchangeMatchesFilters(exchange, user.uid, directionFilter, statusFilter));
+  }, [directionFilter, exchanges, statusFilter, user]);
+
+  const loading = incomingLoading || outgoingLoading;
 
   async function perform(exchange: Exchange, action: string) {
     setBusyId(exchange.id);
@@ -129,9 +210,6 @@ export function ExchangesPage() {
         if (reason) {
           await reportDispute({ exchangeId: exchange.id, reason });
         }
-      } else if (action === "contacts") {
-        const result = await getExchangeContacts({ exchangeId: exchange.id });
-        setContact({ exchangeId: exchange.id, displayName: result.data.counterpartyDisplayName, email: result.data.counterpartyEmail });
       }
     } catch (caught) {
       setError(readableError(caught));
@@ -149,23 +227,44 @@ export function ExchangesPage() {
         </div>
       </section>
       {error ? <p className="alert alert-error">{error}</p> : null}
-      {exchanges.length === 0 ? <div className="empty-state"><h2>No exchanges yet</h2><p>Request an available garment or wait for someone to request yours.</p></div> : null}
-      <section className="record-list">
-        {exchanges.map((exchange) => {
+      {exchanges.length > 0 ? (
+        <section className="exchange-filters" aria-label="Exchange filters">
+          <div className="exchange-direction-filter" role="group" aria-label="Request direction">
+            <button aria-pressed={directionFilter === "ALL"} className={directionFilter === "ALL" ? "active" : ""} type="button" onClick={() => setDirectionFilter("ALL")}>All <span>{exchanges.length}</span></button>
+            <button aria-pressed={directionFilter === "OUTGOING"} className={directionFilter === "OUTGOING" ? "active" : ""} type="button" onClick={() => setDirectionFilter("OUTGOING")}>My requests <span>{outgoing.length}</span></button>
+            <button aria-pressed={directionFilter === "INCOMING"} className={directionFilter === "INCOMING" ? "active" : ""} type="button" onClick={() => setDirectionFilter("INCOMING")}>Incoming <span>{incoming.length}</span></button>
+          </div>
+          <label className="exchange-status-filter">
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ExchangeStatusFilter)}>
+              {exchangeStatusFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+        </section>
+      ) : null}
+      {loading ? <div className="page-state">Loading exchanges...</div> : null}
+      {!loading ? exchanges.length === 0 ? <div className="empty-state"><h2>No exchanges yet</h2><p>Request an available garment or wait for someone to request yours.</p></div> : null : null}
+      {!loading ? exchanges.length > 0 ? visibleExchanges.length === 0 ? <div className="empty-state compact-empty-state"><h2>No matching exchanges</h2><p>Try another request type or status.</p></div> : null : null : null}
+      <section className="record-list exchange-list" aria-live="polite">
+        {visibleExchanges.map((exchange) => {
           const isContributor = exchange.contributorId === user?.uid;
           const isClaimant = exchange.claimantId === user?.uid;
           const isBusy = busyId === exchange.id;
+          const direction = user ? exchangeDirection(exchange, user.uid) : "INCOMING";
           return (
             <article className="record-card exchange-card" key={exchange.id}>
-              <div>
-                <ExchangeItemSummary exchange={exchange} label={isContributor ? "Incoming request" : "Your request"} />
-                {contact?.exchangeId === exchange.id ? <p className="contact-card">Contact {contact.displayName} at <a href={`mailto:${contact.email}`}>{contact.email}</a></p> : null}
+              <ExchangeItemSummary exchange={exchange} label={direction === "INCOMING" ? "Incoming request" : "Your request"} userId={user?.uid || ""} />
+              <div className="exchange-card-support">
+                <div className="exchange-coin-movement">
+                  <CoinIcon compact />
+                  <span>{coinMovementLabel(exchange, user?.uid || "")}</span>
+                </div>
+                {exchangeHasContactAccess(exchange) ? <ExchangeContact exchangeId={exchange.id} /> : <p className="exchange-contact-hint">Contact details appear after acceptance.</p>}
               </div>
               <div className="record-actions">
                 {isContributor ? exchange.status === "REQUESTED" ? <button className="button" disabled={isBusy} onClick={() => perform(exchange, "accept")}>Accept and share email</button> : null : null}
                 {isContributor ? exchange.status === "REQUESTED" ? <button className="button button-secondary" disabled={isBusy} onClick={() => perform(exchange, "reject")}>Reject</button> : null : null}
                 {isClaimant ? exchange.status === "REQUESTED" ? <button className="button button-secondary" disabled={isBusy} onClick={() => perform(exchange, "cancel")}>Cancel request</button> : null : null}
-                {["ACCEPTED", "COMPLETED"].includes(exchange.status) ? <button className="button button-secondary" disabled={isBusy} onClick={() => perform(exchange, "contacts")}>Show contact</button> : null}
                 {isClaimant ? exchange.status === "ACCEPTED" ? <button className="button" disabled={isBusy} onClick={() => perform(exchange, "complete")}>Confirm received</button> : null : null}
                 {["ACCEPTED"].includes(exchange.status) ? <button className="text-action danger" disabled={isBusy} onClick={() => perform(exchange, "dispute")}>Report a problem</button> : null}
               </div>
