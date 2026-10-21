@@ -4,14 +4,16 @@ import { adminStorage, firestore, region } from "./firebase";
 import { invalidInput, requireActiveMember } from "./security";
 import { itemIdSchema, itemInputSchema } from "./validation";
 
-function validateOwnedImagePaths(paths: string[], uid: string, itemId: string): void {
+function validateOwnedImagePaths(paths: string[], uid: string, itemId: string, existingPaths: string[] = []): void {
   const prefix = `itemImages/${uid}/${itemId}/`;
   if (paths.length < 1 || paths.length > 5) {
     throw new HttpsError("invalid-argument", "Published garments need one to five photos.");
   }
   for (const path of paths) {
     if (!path.startsWith(prefix)) {
-      throw new HttpsError("invalid-argument", "A photo path is outside this garment folder.");
+      if (!existingPaths.includes(path)) {
+        throw new HttpsError("invalid-argument", "A photo path is outside this garment folder.");
+      }
     }
   }
 }
@@ -33,6 +35,7 @@ export const createDraft = onCall({ region }, async (request) => {
     imagePaths: [],
     status: "DRAFT",
     activeExchangeId: null,
+    previousExchangeId: null,
     publishedAt: null,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -51,7 +54,18 @@ export const updateDraft = onCall({ region }, async (request) => {
     return invalidInput(error);
   }
   const itemRef = firestore.collection("clothingItems").doc(itemId);
-  validateOwnedImagePaths(item.imagePaths, identity.uid, itemId);
+  const currentSnapshot = await itemRef.get();
+  if (!currentSnapshot.exists) {
+    throw new HttpsError("not-found", "Garment not found.");
+  }
+  if (currentSnapshot.get("ownerId") !== identity.uid) {
+    throw new HttpsError("permission-denied", "Only the owner can edit this garment.");
+  }
+  if (!["DRAFT", "AVAILABLE"].includes(currentSnapshot.get("status") as string)) {
+    throw new HttpsError("failed-precondition", "Only draft or available garments can be edited.");
+  }
+  const existingPaths = currentSnapshot.get("imagePaths") as string[];
+  validateOwnedImagePaths(item.imagePaths, identity.uid, itemId, existingPaths);
   const existence = await Promise.all(item.imagePaths.map((path) => adminStorage.bucket().file(path).exists()));
   if (existence.some(([exists]) => !exists)) {
     throw new HttpsError("failed-precondition", "One or more garment photos are missing.");
@@ -67,6 +81,7 @@ export const updateDraft = onCall({ region }, async (request) => {
     if (!["DRAFT", "AVAILABLE"].includes(snapshot.get("status") as string)) {
       throw new HttpsError("failed-precondition", "Only draft or available garments can be edited.");
     }
+    validateOwnedImagePaths(item.imagePaths, identity.uid, itemId, snapshot.get("imagePaths") as string[]);
     transaction.update(itemRef, { ...item, updatedAt: FieldValue.serverTimestamp() });
   });
   return { itemId };
@@ -89,13 +104,19 @@ export const publishItem = onCall({ region }, async (request) => {
     throw new HttpsError("permission-denied", "Only the owner can publish this garment.");
   }
   const imagePaths = itemSnapshot.get("imagePaths") as string[];
-  validateOwnedImagePaths(imagePaths, identity.uid, itemId);
+  validateOwnedImagePaths(imagePaths, identity.uid, itemId, imagePaths);
   const existence = await Promise.all(imagePaths.map((path) => adminStorage.bucket().file(path).exists()));
   if (existence.some(([exists]) => !exists)) {
     throw new HttpsError("failed-precondition", "One or more garment photos are missing.");
   }
   await firestore.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(itemRef);
+    if (!snapshot.exists) {
+      throw new HttpsError("not-found", "Garment not found.");
+    }
+    if (snapshot.get("ownerId") !== identity.uid) {
+      throw new HttpsError("permission-denied", "Only the owner can publish this garment.");
+    }
     if (snapshot.get("status") !== "DRAFT") {
       throw new HttpsError("failed-precondition", "Only a draft can be published.");
     }

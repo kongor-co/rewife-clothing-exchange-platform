@@ -56,6 +56,16 @@ beforeEach(async () => {
         status: "RESERVED",
         activeExchangeId: "exchange-1",
       }),
+      setDoc(doc(database, "clothingItems", "transferred-1"), {
+        ...item,
+        ownerId: "claimant",
+        ownerDisplayName: "Claimant",
+        imagePaths: ["itemImages/owner/transferred-1/photo.webp"],
+        status: "DRAFT",
+        activeExchangeId: null,
+        previousExchangeId: "exchange-2",
+        publishedAt: null,
+      }),
       setDoc(doc(database, "exchanges", "exchange-1"), {
         itemId: "reserved-1",
         itemTitle: item.title,
@@ -72,12 +82,29 @@ beforeEach(async () => {
         createdAt: now,
         updatedAt: now,
       }),
+      setDoc(doc(database, "exchanges", "exchange-2"), {
+        itemId: "transferred-1",
+        itemTitle: item.title,
+        itemSize: item.size,
+        itemMainFabric: item.mainFabric,
+        itemImagePath: "itemImages/owner/transferred-1/photo.webp",
+        contributorId: "owner",
+        claimantId: "claimant",
+        status: "COMPLETED",
+        consentFlags: { claimantContactDisclosure: true, contributorContactDisclosure: true },
+        cancellationReason: null,
+        disputeReason: null,
+        resolutionReason: null,
+        createdAt: now,
+        updatedAt: now,
+      }),
     ]);
     const storage = context.storage();
     await Promise.all([
       storage.ref("itemImages/owner/item-1/photo.webp").put(new Uint8Array([1]), { contentType: "image/webp" }),
       storage.ref("itemImages/owner/draft-1/photo.webp").put(new Uint8Array([1]), { contentType: "image/webp" }),
       storage.ref("itemImages/owner/reserved-1/photo.webp").put(new Uint8Array([1]), { contentType: "image/webp" }),
+      storage.ref("itemImages/owner/transferred-1/photo.webp").put(new Uint8Array([1]), { contentType: "image/webp" }),
     ]);
   });
 });
@@ -160,6 +187,33 @@ describe("Firestore access boundaries", () => {
     await assertSucceeds(verifiedStorage("owner").ref("itemImages/owner/reserved-1/photo.webp").getMetadata());
     await assertSucceeds(verifiedStorage("claimant").ref("itemImages/owner/reserved-1/photo.webp").getMetadata());
     await assertFails(verifiedStorage("unrelated").ref("itemImages/owner/reserved-1/photo.webp").getMetadata());
+  });
+
+  it("keeps a transferred draft visible to its new owner and completed exchange participants", async () => {
+    await assertSucceeds(getDoc(doc(verifiedDatabase("claimant"), "clothingItems", "transferred-1")));
+    await assertSucceeds(getDoc(doc(verifiedDatabase("owner"), "clothingItems", "transferred-1")));
+    await assertFails(getDoc(doc(verifiedDatabase("unrelated"), "clothingItems", "transferred-1")));
+
+    const formerOwnerWardrobe = query(
+      collection(verifiedDatabase("owner"), "clothingItems"),
+      where("ownerId", "==", "owner"),
+      orderBy("updatedAt", "desc"),
+    );
+    const receiverWardrobe = query(
+      collection(verifiedDatabase("claimant"), "clothingItems"),
+      where("ownerId", "==", "claimant"),
+      orderBy("updatedAt", "desc"),
+    );
+    const formerOwnerResults = await assertSucceeds(getDocs(formerOwnerWardrobe));
+    const receiverResults = await assertSucceeds(getDocs(receiverWardrobe));
+    expect(formerOwnerResults.docs.some((snapshot) => snapshot.id === "transferred-1")).toBe(false);
+    expect(receiverResults.docs.some((snapshot) => snapshot.id === "transferred-1")).toBe(true);
+
+    const imagePath = "itemImages/owner/transferred-1/photo.webp";
+    await assertSucceeds(verifiedStorage("claimant").ref(imagePath).getMetadata());
+    await assertSucceeds(verifiedStorage("owner").ref(imagePath).getMetadata());
+    await assertFails(verifiedStorage("unrelated").ref(imagePath).getMetadata());
+    await assertFails(environment.unauthenticatedContext().storage().ref(imagePath).getMetadata());
   });
 
   it("allows the activity indicator queries only for the matching participant", async () => {

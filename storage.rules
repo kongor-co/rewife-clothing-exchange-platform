@@ -20,9 +20,15 @@ service firebase.storage {
       return /databases/(default)/documents/clothingItems/$(itemId);
     }
 
-    function isItemOwner(uid, itemId) {
+    function itemExists(itemId) {
+      return firestore.exists(itemPath(itemId));
+    }
+
+    function requesterOwnsItem(itemId) {
       return firestore.exists(itemPath(itemId))
-        ? firestore.get(itemPath(itemId)).data.ownerId == uid
+        ? request.auth != null
+          ? firestore.get(itemPath(itemId)).data.ownerId == request.auth.uid
+          : false
         : false;
     }
 
@@ -40,30 +46,54 @@ service firebase.storage {
         : false;
     }
 
-    function exchangeAllowsRead(itemData) {
-      return itemData.activeExchangeId is string
-        ? firestore.exists(/databases/(default)/documents/exchanges/$(itemData.activeExchangeId))
-          ? firestore.get(/databases/(default)/documents/exchanges/$(itemData.activeExchangeId)).data.contributorId == request.auth.uid ||
-            firestore.get(/databases/(default)/documents/exchanges/$(itemData.activeExchangeId)).data.claimantId == request.auth.uid
+    function imageBelongsToItem(uid, itemId, fileName) {
+      return itemExists(itemId)
+        ? firestore.get(itemPath(itemId)).data.imagePaths is list
+          ? 'itemImages/' + uid + '/' + itemId + '/' + fileName in firestore.get(itemPath(itemId)).data.imagePaths
           : false
         : false;
     }
 
-    function canReadItemImage(uid, itemId) {
-      return isItemOwner(uid, itemId)
+    function exchangeAllowsRead(exchangeId) {
+      return request.auth != null
+        ? exchangeId is string
+          ? firestore.exists(/databases/(default)/documents/exchanges/$(exchangeId))
+            ? firestore.get(/databases/(default)/documents/exchanges/$(exchangeId)).data.contributorId == request.auth.uid ||
+              firestore.get(/databases/(default)/documents/exchanges/$(exchangeId)).data.claimantId == request.auth.uid
+            : false
+          : false
+        : false;
+    }
+
+    function previousExchangeAllowsRead(itemData) {
+      return 'previousExchangeId' in itemData
+        ? itemData.previousExchangeId is string
+          ? firestore.exists(/databases/(default)/documents/exchanges/$(itemData.previousExchangeId))
+            ? firestore.get(/databases/(default)/documents/exchanges/$(itemData.previousExchangeId)).data.status == 'COMPLETED'
+              ? exchangeAllowsRead(itemData.previousExchangeId)
+              : false
+            : false
+          : false
+        : false;
+    }
+
+    function canReadItemImage(uid, itemId, fileName) {
+      return imageBelongsToItem(uid, itemId, fileName)
         ? firestore.get(itemPath(itemId)).data.status == 'AVAILABLE'
           ? true
           : memberIsActive()
-            ? uid == request.auth.uid || exchangeAllowsRead(firestore.get(itemPath(itemId)).data)
+            ? requesterOwnsItem(itemId) ||
+              exchangeAllowsRead(firestore.get(itemPath(itemId)).data.activeExchangeId) ||
+              previousExchangeAllowsRead(firestore.get(itemPath(itemId)).data)
             : false
         : false;
     }
 
     match /itemImages/{uid}/{itemId}/{fileName} {
-      allow read: if canReadItemImage(uid, itemId);
+      allow read: if canReadItemImage(uid, itemId, fileName);
       allow create: if memberIsActive()
         ? request.auth.uid == uid
-          ? isItemOwner(uid, itemId)
+          ? requesterOwnsItem(itemId)
             ? itemAcceptsUpload(itemId)
               ? validImage(fileName)
               : false
@@ -71,16 +101,16 @@ service firebase.storage {
           : false
         : false;
       allow delete: if memberIsActive()
-        ? request.auth.uid == uid
-          ? isItemOwner(uid, itemId)
-            ? itemAcceptsUpload(itemId)
+        ? requesterOwnsItem(itemId)
+          ? itemAcceptsUpload(itemId)
+            ? imageBelongsToItem(uid, itemId, fileName)
             : false
           : false
         : false;
       allow update: if memberIsActive()
-        ? request.auth.uid == uid
-          ? isItemOwner(uid, itemId)
-            ? itemAcceptsUpload(itemId)
+        ? requesterOwnsItem(itemId)
+          ? itemAcceptsUpload(itemId)
+            ? imageBelongsToItem(uid, itemId, fileName)
               ? validImage(fileName)
               : false
             : false
