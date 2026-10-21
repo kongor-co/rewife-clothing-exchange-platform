@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isAllowedGarmentSize } from "./garmentOptions";
 
 export const categorySchema = z.enum(["TOP", "BOTTOM", "DRESS", "OUTERWEAR", "SHOES", "ACCESSORY", "OTHER"]);
 export const conditionSchema = z.enum(["NEW", "VERY_GOOD", "GOOD"]);
@@ -18,7 +19,15 @@ export const itemInputSchema = z.object({
   description: z.string().trim().max(500),
   compositionText: z.string().trim().max(150),
   imagePaths: z.array(z.string().min(1).max(300)).max(5),
-}).strict();
+}).strict().superRefine((item, context) => {
+  if (!isAllowedGarmentSize(item.category, item.size)) {
+    context.addIssue({
+      code: "custom",
+      path: ["size"],
+      message: "Choose a size from the allowed EU size list for this category.",
+    });
+  }
+});
 
 export const itemIdSchema = z.object({ itemId: z.string().min(1).max(128) }).strict();
 export const exchangeIdSchema = z.object({ exchangeId: z.string().min(1).max(128) }).strict();
