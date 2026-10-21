@@ -50,9 +50,18 @@ beforeEach(async () => {
       setDoc(doc(database, "coinAccounts", "owner"), { available: 10, reserved: 0, createdAt: now, updatedAt: now }),
       setDoc(doc(database, "clothingItems", "item-1"), item),
       setDoc(doc(database, "clothingItems", "draft-1"), { ...item, status: "DRAFT", publishedAt: null }),
+      setDoc(doc(database, "clothingItems", "reserved-1"), {
+        ...item,
+        imagePaths: ["itemImages/owner/reserved-1/photo.webp"],
+        status: "RESERVED",
+        activeExchangeId: "exchange-1",
+      }),
       setDoc(doc(database, "exchanges", "exchange-1"), {
-        itemId: "item-1",
+        itemId: "reserved-1",
         itemTitle: item.title,
+        itemSize: item.size,
+        itemMainFabric: item.mainFabric,
+        itemImagePath: "itemImages/owner/reserved-1/photo.webp",
         contributorId: "owner",
         claimantId: "claimant",
         status: "ACCEPTED",
@@ -68,6 +77,7 @@ beforeEach(async () => {
     await Promise.all([
       storage.ref("itemImages/owner/item-1/photo.webp").put(new Uint8Array([1]), { contentType: "image/webp" }),
       storage.ref("itemImages/owner/draft-1/photo.webp").put(new Uint8Array([1]), { contentType: "image/webp" }),
+      storage.ref("itemImages/owner/reserved-1/photo.webp").put(new Uint8Array([1]), { contentType: "image/webp" }),
     ]);
   });
 });
@@ -140,6 +150,16 @@ describe("Firestore access boundaries", () => {
     await assertSucceeds(getDoc(doc(verifiedDatabase("owner"), "exchanges", "exchange-1")));
     await assertSucceeds(getDoc(doc(verifiedDatabase("claimant"), "exchanges", "exchange-1")));
     await assertFails(getDoc(doc(verifiedDatabase("unrelated"), "exchanges", "exchange-1")));
+  });
+
+  it("allows only exchange participants to identify a reserved garment", async () => {
+    await assertSucceeds(getDoc(doc(verifiedDatabase("owner"), "clothingItems", "reserved-1")));
+    await assertSucceeds(getDoc(doc(verifiedDatabase("claimant"), "clothingItems", "reserved-1")));
+    await assertFails(getDoc(doc(verifiedDatabase("unrelated"), "clothingItems", "reserved-1")));
+
+    await assertSucceeds(verifiedStorage("owner").ref("itemImages/owner/reserved-1/photo.webp").getMetadata());
+    await assertSucceeds(verifiedStorage("claimant").ref("itemImages/owner/reserved-1/photo.webp").getMetadata());
+    await assertFails(verifiedStorage("unrelated").ref("itemImages/owner/reserved-1/photo.webp").getMetadata());
   });
 
   it("allows the activity indicator queries only for the matching participant", async () => {

@@ -60,6 +60,9 @@ export interface Exchange {
   id: string;
   itemId: string;
   itemTitle: string;
+  itemSize?: string;
+  itemMainFabric?: Fabric;
+  itemImagePath?: string | null;
   contributorId: string;
   claimantId: string;
   status: ExchangeStatus;

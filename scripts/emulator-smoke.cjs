@@ -38,7 +38,7 @@ async function callFunction(name, idToken, data) {
 }
 
 async function run() {
-  const suffix = Date.now();
+  const suffix = process.env.SMOKE_SUFFIX || Date.now();
   const email = `pilot-${suffix}@example.test`;
   const password = `Pilot-${suffix}-pass`;
   const displayName = "Pilot Tester";
@@ -96,9 +96,9 @@ async function run() {
     method: "POST",
     headers: {
       authorization: `Bearer ${signIn.idToken}`,
-      "content-type": "image/jpeg",
+      "content-type": "image/png",
     },
-    body: Buffer.from([255, 216, 255, 217]),
+    body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZfWQAAAAASUVORK5CYII=", "base64"),
   });
   await readJson(uploadResponse);
 
@@ -154,6 +154,10 @@ async function run() {
     contactDisclosureConsent: true,
   });
   const exchangeId = claim.result.exchangeId;
+  const requestedExchange = await firestore.collection("exchanges").doc(exchangeId).get();
+  assert.equal(requestedExchange.get("itemSize"), item.size);
+  assert.equal(requestedExchange.get("itemMainFabric"), item.mainFabric);
+  assert.equal(requestedExchange.get("itemImagePath"), imagePath);
   const repeatedClaim = await callFunction("claimItem", claimantSignIn.idToken, {
     itemId,
     operationId: claimOperationId,
@@ -186,14 +190,17 @@ async function run() {
   const claimantAccount = await firestore.collection("coinAccounts").doc(claimant.uid).get();
   assert.equal(completedExchange.get("status"), "COMPLETED");
   assert.equal(completedItem.get("status"), "EXCHANGED");
+  assert.equal(completedItem.get("activeExchangeId"), exchangeId);
   assert.equal(contributorAccount.get("available"), 11);
   assert.equal(claimantAccount.get("available"), 9);
   assert.equal(claimantAccount.get("reserved"), 0);
 
-  const hostingResponse = await fetch("http://127.0.0.1:5000");
-  const hostingBody = await hostingResponse.text();
-  assert.equal(hostingResponse.ok, true);
-  assert.equal(hostingBody.includes("<title>rewife</title>"), true);
+  if (process.env.SKIP_HOSTING_CHECK !== "true") {
+    const hostingResponse = await fetch("http://127.0.0.1:5000");
+    const hostingBody = await hostingResponse.text();
+    assert.equal(hostingResponse.ok, true);
+    assert.equal(hostingBody.includes("<title>rewife</title>"), true);
+  }
 
   console.log("Smoke test passed: the complete local exchange flow is connected.");
 }

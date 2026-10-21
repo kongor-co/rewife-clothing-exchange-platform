@@ -1,16 +1,86 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { acceptExchange, cancelRequestedExchange, confirmReceived, getExchangeContacts, rejectExchange, reportDispute } from "../lib/callables";
-import { exchangeFromDoc } from "../lib/documents";
+import { clothingItemFromDoc, exchangeFromDoc } from "../lib/documents";
 import { readableError } from "../lib/errors";
 import { db } from "../lib/firebase";
-import { humanize, type Exchange } from "../types";
+import { resolveImage } from "../lib/images";
+import { humanize, type ClothingItem, type Exchange, type Fabric } from "../types";
 
 interface ContactCard {
   exchangeId: string;
   displayName: string;
   email: string;
+}
+
+interface ExchangeItemDetails {
+  size: string;
+  mainFabric: Fabric | undefined;
+  imagePath: string | null;
+}
+
+function ExchangeItemSummary({ exchange, label }: { exchange: Exchange; label: string }) {
+  const [item, setItem] = useState<ClothingItem | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getDoc(doc(db, "clothingItems", exchange.itemId))
+      .then((snapshot) => {
+        if (active) {
+          setItem(snapshot.exists() ? clothingItemFromDoc(snapshot) : null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setItem(null);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [exchange.itemId]);
+
+  const details: ExchangeItemDetails = {
+    size: item?.size || exchange.itemSize || "",
+    mainFabric: item?.mainFabric || exchange.itemMainFabric,
+    imagePath: item?.imagePaths[0] || exchange.itemImagePath || null,
+  };
+
+  useEffect(() => {
+    let active = true;
+    resolveImage(details.imagePath || undefined).then((url) => {
+      if (active) {
+        setImageUrl(url);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [details.imagePath]);
+
+  return (
+    <div className="exchange-card-main">
+      <Link className="exchange-item-image" to={`/items/${exchange.itemId}`} aria-label={`View ${exchange.itemTitle}`}>
+        {imageUrl ? <img src={imageUrl} alt={exchange.itemTitle} onError={() => setImageUrl(null)} /> : <span>Garment</span>}
+      </Link>
+      <div className="exchange-card-copy">
+        <p className="eyebrow">{label}</p>
+        <h2><Link to={`/items/${exchange.itemId}`}>{exchange.itemTitle}</Link></h2>
+        {details.size || details.mainFabric ? (
+          <dl className="exchange-item-meta">
+            {details.size ? <div><dt>Size</dt><dd>{details.size}</dd></div> : null}
+            {details.mainFabric ? <div><dt>Material</dt><dd>{humanize(details.mainFabric)}</dd></div> : null}
+          </dl>
+        ) : null}
+        <span className={`status-badge status-${exchange.status.toLowerCase()}`}>{humanize(exchange.status)}</span>
+        {exchange.cancellationReason ? <p>Reason: {humanize(exchange.cancellationReason)}</p> : null}
+        {exchange.disputeReason ? <p>Dispute: {exchange.disputeReason}</p> : null}
+      </div>
+    </div>
+  );
 }
 
 export function ExchangesPage() {
@@ -88,11 +158,7 @@ export function ExchangesPage() {
           return (
             <article className="record-card exchange-card" key={exchange.id}>
               <div>
-                <p className="eyebrow">{isContributor ? "Incoming request" : "Your request"}</p>
-                <h2>{exchange.itemTitle}</h2>
-                <span className={`status-badge status-${exchange.status.toLowerCase()}`}>{humanize(exchange.status)}</span>
-                {exchange.cancellationReason ? <p>Reason: {humanize(exchange.cancellationReason)}</p> : null}
-                {exchange.disputeReason ? <p>Dispute: {exchange.disputeReason}</p> : null}
+                <ExchangeItemSummary exchange={exchange} label={isContributor ? "Incoming request" : "Your request"} />
                 {contact?.exchangeId === exchange.id ? <p className="contact-card">Contact {contact.displayName} at <a href={`mailto:${contact.email}`}>{contact.email}</a></p> : null}
               </div>
               <div className="record-actions">
