@@ -119,15 +119,23 @@ export const acceptExchange = onCall({ region }, async (request) => {
   }
   const exchangeRef = firestore.collection("exchanges").doc(input.exchangeId);
   await firestore.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(exchangeRef);
-    if (!snapshot.exists) {
+    const exchangeSnapshot = await transaction.get(exchangeRef);
+    if (!exchangeSnapshot.exists) {
       throw new HttpsError("not-found", "Exchange not found.");
     }
-    if (snapshot.get("contributorId") !== identity.uid) {
+    if (exchangeSnapshot.get("contributorId") !== identity.uid) {
       throw new HttpsError("permission-denied", "Only the contributor can accept this request.");
     }
-    if (snapshot.get("status") !== "REQUESTED") {
+    if (exchangeSnapshot.get("status") !== "REQUESTED") {
       throw new HttpsError("failed-precondition", "This request is no longer awaiting a decision.");
+    }
+    const itemRef = firestore.collection("clothingItems").doc(exchangeSnapshot.get("itemId") as string);
+    const itemSnapshot = await transaction.get(itemRef);
+    if (!itemSnapshot.exists) {
+      throw new HttpsError("data-loss", "The reserved garment is missing.");
+    }
+    if (itemSnapshot.get("status") !== "RESERVED" || itemSnapshot.get("activeExchangeId") !== input.exchangeId) {
+      throw new HttpsError("data-loss", "The garment reservation does not match this exchange.");
     }
     transaction.update(exchangeRef, {
       status: "ACCEPTED",
@@ -166,6 +174,9 @@ async function cancelRequested(exchangeId: string, actorId: string, role: "claim
     ]);
     if (!accountSnapshot.exists || !itemSnapshot.exists) {
       throw new HttpsError("data-loss", "Exchange records are incomplete.");
+    }
+    if (itemSnapshot.get("status") !== "RESERVED" || itemSnapshot.get("activeExchangeId") !== exchangeId) {
+      throw new HttpsError("data-loss", "The garment reservation does not match this exchange.");
     }
     const reserved = accountSnapshot.get("reserved") as number;
     if (reserved < 1) {
@@ -255,7 +266,7 @@ export const confirmReceived = onCall({ region }, async (request) => {
     if (reserved < 1) {
       throw new HttpsError("data-loss", "The reserved coin is missing.");
     }
-    if (itemSnapshot.get("activeExchangeId") !== exchangeId) {
+    if (itemSnapshot.get("status") !== "RESERVED" || itemSnapshot.get("activeExchangeId") !== exchangeId) {
       throw new HttpsError("data-loss", "The garment reservation does not match this exchange.");
     }
     transaction.update(exchangeRef, { status: "COMPLETED", updatedAt: FieldValue.serverTimestamp() });
@@ -287,19 +298,27 @@ export const reportDispute = onCall({ region }, async (request) => {
   }
   const exchangeRef = firestore.collection("exchanges").doc(input.exchangeId);
   await firestore.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(exchangeRef);
-    if (!snapshot.exists) {
+    const exchangeSnapshot = await transaction.get(exchangeRef);
+    if (!exchangeSnapshot.exists) {
       throw new HttpsError("not-found", "Exchange not found.");
     }
-    const isContributor = snapshot.get("contributorId") === identity.uid;
-    const isClaimant = snapshot.get("claimantId") === identity.uid;
+    const isContributor = exchangeSnapshot.get("contributorId") === identity.uid;
+    const isClaimant = exchangeSnapshot.get("claimantId") === identity.uid;
     if (!isContributor) {
       if (!isClaimant) {
         throw new HttpsError("permission-denied", "Only exchange participants can report a dispute.");
       }
     }
-    if (snapshot.get("status") !== "ACCEPTED") {
+    if (exchangeSnapshot.get("status") !== "ACCEPTED") {
       throw new HttpsError("failed-precondition", "Only an accepted exchange can be disputed.");
+    }
+    const itemRef = firestore.collection("clothingItems").doc(exchangeSnapshot.get("itemId") as string);
+    const itemSnapshot = await transaction.get(itemRef);
+    if (!itemSnapshot.exists) {
+      throw new HttpsError("data-loss", "The reserved garment is missing.");
+    }
+    if (itemSnapshot.get("status") !== "RESERVED" || itemSnapshot.get("activeExchangeId") !== input.exchangeId) {
+      throw new HttpsError("data-loss", "The garment reservation does not match this exchange.");
     }
     transaction.update(exchangeRef, {
       status: "DISPUTED",
