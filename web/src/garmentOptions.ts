@@ -32,6 +32,22 @@ export function filterSizeOptions(category: Category, query: string): string[] {
   return sizeOptionsByCategory[category].filter((option) => option.toLocaleLowerCase().includes(normalizedQuery));
 }
 
+export function sizeOptionsForCategories(selectedCategories: readonly Category[]): string[] {
+  const options = selectedCategories.length > 0
+    ? selectedCategories.flatMap((category) => sizeOptionsByCategory[category])
+    : Object.values(sizeOptionsByCategory).flat();
+  return uniqueOptions(options);
+}
+
+export function filterSizeOptionsForCategories(selectedCategories: readonly Category[], query: string): string[] {
+  const options = sizeOptionsForCategories(selectedCategories);
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) {
+    return options;
+  }
+  return options.filter((option) => option.toLocaleLowerCase().includes(normalizedQuery));
+}
+
 export function isAllowedGarmentSize(category: Category, value: string): boolean {
   return sizeOptionsByCategory[category].includes(value);
 }
