@@ -260,14 +260,26 @@ export const confirmReceived = onCall({ region }, async (request) => {
     const itemId = exchangeSnapshot.get("itemId") as string;
     const claimantRef = firestore.collection("coinAccounts").doc(claimantId);
     const contributorRef = firestore.collection("coinAccounts").doc(contributorId);
+    const claimantProfileRef = firestore.collection("users").doc(claimantId);
     const itemRef = firestore.collection("clothingItems").doc(itemId);
-    const [claimantSnapshot, contributorSnapshot, itemSnapshot] = await Promise.all([
+    const [claimantSnapshot, contributorSnapshot, claimantProfileSnapshot, itemSnapshot] = await Promise.all([
       transaction.get(claimantRef),
       transaction.get(contributorRef),
+      transaction.get(claimantProfileRef),
       transaction.get(itemRef),
     ]);
-    if (!claimantSnapshot.exists || !contributorSnapshot.exists || !itemSnapshot.exists) {
+    if (!claimantSnapshot.exists || !contributorSnapshot.exists || !claimantProfileSnapshot.exists || !itemSnapshot.exists) {
       throw new HttpsError("data-loss", "Exchange records are incomplete.");
+    }
+    if (claimantProfileSnapshot.get("status") !== "ACTIVE") {
+      throw new HttpsError("failed-precondition", "The recipient account is not active.");
+    }
+    const claimantDisplayName = claimantProfileSnapshot.get("displayName");
+    if (typeof claimantDisplayName !== "string") {
+      throw new HttpsError("data-loss", "The recipient profile is incomplete.");
+    }
+    if (claimantDisplayName.trim().length < 2) {
+      throw new HttpsError("data-loss", "The recipient profile is incomplete.");
     }
     const reserved = claimantSnapshot.get("reserved") as number;
     if (reserved < 1) {
@@ -277,7 +289,15 @@ export const confirmReceived = onCall({ region }, async (request) => {
       throw new HttpsError("data-loss", "The garment reservation does not match this exchange.");
     }
     transaction.update(exchangeRef, { status: "COMPLETED", updatedAt: FieldValue.serverTimestamp() });
-    transaction.update(itemRef, { status: "EXCHANGED", activeExchangeId: exchangeId, updatedAt: FieldValue.serverTimestamp() });
+    transaction.update(itemRef, {
+      ownerId: claimantId,
+      ownerDisplayName: claimantDisplayName,
+      status: "DRAFT",
+      activeExchangeId: null,
+      previousExchangeId: exchangeId,
+      publishedAt: null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
     transaction.update(claimantRef, { reserved: reserved - 1, updatedAt: FieldValue.serverTimestamp() });
     transaction.update(contributorRef, {
       available: (contributorSnapshot.get("available") as number) + 1,

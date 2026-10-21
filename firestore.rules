@@ -2,7 +2,7 @@ rules_version = '2';
 
 // Assumed data model
 // users/{uid}: public displayName, status, createdAt, updatedAt. No email or private data.
-// clothingItems/{itemId}: owner, public AVAILABLE garment metadata, image paths, state, timestamps.
+// clothingItems/{itemId}: current owner, public AVAILABLE garment metadata, image paths, state, timestamps, exchange links.
 // exchanges/{exchangeId}: participant IDs, item reference, state, consent, resolution data.
 // coinAccounts/{uid}: integer available and reserved balances with timestamps.
 // coinEvents/{eventId}: immutable ledger event with affectedUserIds and optional exchangeId.
@@ -112,7 +112,7 @@ service cloud.firestore {
       return data.category in ['TOP', 'BOTTOM', 'DRESS', 'OUTERWEAR', 'SHOES', 'ACCESSORY', 'OTHER']
         ? data.condition in ['NEW', 'VERY_GOOD', 'GOOD']
           ? data.mainFabric in ['COTTON', 'LINEN', 'WOOL', 'SILK', 'HEMP', 'VISCOSE', 'LYOCELL', 'MODAL', 'POLYESTER', 'POLYAMIDE', 'ACRYLIC', 'ELASTANE', 'MIXED', 'OTHER', 'UNKNOWN']
-            ? data.status in ['DRAFT', 'AVAILABLE', 'RESERVED', 'EXCHANGED', 'WITHDRAWN']
+            ? data.status in ['DRAFT', 'AVAILABLE', 'RESERVED', 'EXCHANGED', 'WITHDRAWN', 'DELETED']
             : false
           : false
         : false;
@@ -128,7 +128,19 @@ service cloud.firestore {
       return data.createdAt is timestamp
         ? data.updatedAt is timestamp
           ? data.publishedAt == null || data.publishedAt is timestamp
+            ? !('deletedAt' in data)
+              ? true
+              : data.deletedAt is timestamp
+            : false
           : false
+        : false;
+    }
+
+    function validItemExchangeLinks(data) {
+      return data.activeExchangeId == null || data.activeExchangeId is string
+        ? !('previousExchangeId' in data)
+          ? true
+          : data.previousExchangeId == null || data.previousExchangeId is string
         : false;
     }
 
@@ -136,7 +148,8 @@ service cloud.firestore {
       return hasOnlyAllowedFields(data, [
         'ownerId', 'ownerDisplayName', 'title', 'category', 'size', 'condition',
         'mainFabric', 'description', 'compositionText', 'imagePaths', 'status',
-        'activeExchangeId', 'publishedAt', 'createdAt', 'updatedAt'
+        'activeExchangeId', 'previousExchangeId', 'publishedAt', 'deletedAt',
+        'createdAt', 'updatedAt'
       ])
         ? hasRequiredFields(data, [
           'ownerId', 'ownerDisplayName', 'title', 'category', 'size', 'condition',
@@ -148,6 +161,8 @@ service cloud.firestore {
               ? validItemEnums(data)
                 ? validItemImages(data)
                   ? validItemTimestamps(data)
+                    ? validItemExchangeLinks(data)
+                    : false
                   : false
                 : false
               : false
@@ -170,9 +185,21 @@ service cloud.firestore {
         : false;
     }
 
+    function previousExchangeAllowsRead(data) {
+      return 'previousExchangeId' in data
+        ? data.previousExchangeId is string
+          ? exists(/databases/$(database)/documents/exchanges/$(data.previousExchangeId))
+            ? get(/databases/$(database)/documents/exchanges/$(data.previousExchangeId)).data.status == 'COMPLETED'
+              ? isExchangeParticipant(get(/databases/$(database)/documents/exchanges/$(data.previousExchangeId)).data)
+              : false
+            : false
+          : false
+        : false;
+    }
+
     function canReadMemberItem(data) {
       return isActiveMember()
-        ? data.ownerId == request.auth.uid || activeExchangeAllowsRead(data)
+        ? data.ownerId == request.auth.uid || activeExchangeAllowsRead(data) || previousExchangeAllowsRead(data)
         : false;
     }
 

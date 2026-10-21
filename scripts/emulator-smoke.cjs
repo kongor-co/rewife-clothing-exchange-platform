@@ -189,11 +189,26 @@ async function run() {
   const contributorAccount = await firestore.collection("coinAccounts").doc(user.uid).get();
   const claimantAccount = await firestore.collection("coinAccounts").doc(claimant.uid).get();
   assert.equal(completedExchange.get("status"), "COMPLETED");
-  assert.equal(completedItem.get("status"), "EXCHANGED");
-  assert.equal(completedItem.get("activeExchangeId"), exchangeId);
+  assert.equal(completedItem.get("ownerId"), claimant.uid);
+  assert.equal(completedItem.get("ownerDisplayName"), "Pilot Claimant");
+  assert.equal(completedItem.get("status"), "DRAFT");
+  assert.equal(completedItem.get("activeExchangeId"), null);
+  assert.equal(completedItem.get("previousExchangeId"), exchangeId);
+  assert.equal(completedItem.get("publishedAt"), null);
   assert.equal(contributorAccount.get("available"), 11);
   assert.equal(claimantAccount.get("available"), 9);
   assert.equal(claimantAccount.get("reserved"), 0);
+
+  const contributorWardrobe = await firestore.collection("clothingItems").where("ownerId", "==", user.uid).get();
+  const receiverWardrobe = await firestore.collection("clothingItems").where("ownerId", "==", claimant.uid).get();
+  assert.equal(contributorWardrobe.docs.some((snapshot) => snapshot.id === itemId), false);
+  assert.equal(receiverWardrobe.docs.some((snapshot) => snapshot.id === itemId), true);
+
+  const editedItem = { ...item, title: "Received smoke test shirt", imagePaths: [imagePath] };
+  await callFunction("updateDraft", claimantSignIn.idToken, { itemId, item: editedItem });
+  const transferredDraft = await firestore.collection("clothingItems").doc(itemId).get();
+  assert.equal(transferredDraft.get("title"), editedItem.title);
+  assert.equal(transferredDraft.get("status"), "DRAFT");
 
   if (process.env.SKIP_HOSTING_CHECK !== "true") {
     const hostingResponse = await fetch("http://127.0.0.1:5000");

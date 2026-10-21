@@ -50,6 +50,7 @@ export interface ClothingItem {
   imagePaths: string[];
   status: ItemStatus;
   activeExchangeId: string | null;
+  previousExchangeId?: string | null;
   publishedAt: Timestamp | null;
   deletedAt?: Timestamp | null;
   createdAt: Timestamp;
