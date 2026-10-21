@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, doc, getDoc, getDocs, query, setDoc, Timestamp, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, Timestamp, updateDoc, where } from "firebase/firestore";
 
 let environment: RulesTestEnvironment;
 
@@ -105,6 +105,26 @@ describe("Firestore access boundaries", () => {
     const database = verifiedDatabase("claimant");
     const available = query(collection(database, "clothingItems"), where("status", "==", "AVAILABLE"));
     await assertSucceeds(getDocs(available));
+  });
+
+  it("allows an active verified owner to query every garment in their wardrobe", async () => {
+    const database = verifiedDatabase("owner");
+    const wardrobe = query(
+      collection(database, "clothingItems"),
+      where("ownerId", "==", "owner"),
+      orderBy("updatedAt", "desc"),
+    );
+    await assertSucceeds(getDocs(wardrobe));
+  });
+
+  it("prevents another member from querying somebody else's wardrobe", async () => {
+    const database = verifiedDatabase("claimant");
+    const wardrobe = query(
+      collection(database, "clothingItems"),
+      where("ownerId", "==", "owner"),
+      orderBy("updatedAt", "desc"),
+    );
+    await assertFails(getDocs(wardrobe));
   });
 
   it("allows only the owner to read a coin account", async () => {
