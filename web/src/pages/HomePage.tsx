@@ -5,7 +5,10 @@ export function HomePage() {
     <div className="landing-page">
       <header className="landing-header">
         <span className="brand">rewife</span>
-        <Link className="button button-secondary" to="/auth">Sign in</Link>
+        <div className="landing-header-actions">
+          <Link className="text-action" to="/auth/signin">Sign in</Link>
+          <Link className="button button-secondary" to="/auth/signup">Create account</Link>
+        </div>
       </header>
       <section className="hero">
         <div>
@@ -14,7 +17,10 @@ export function HomePage() {
           <p className="hero-copy">
             List a garment, earn a coin when it finds a new home, and use coins to request pieces from other members.
           </p>
-          <Link className="button" to="/auth">Join the pilot</Link>
+          <div className="landing-hero-actions">
+            <Link className="button" to="/browse">Browse garments</Link>
+            <Link className="button button-secondary" to="/auth/signup">Join the pilot</Link>
+          </div>
         </div>
         <div className="hero-card" aria-label="How rewife works">
           <div><strong>1</strong><span>List clothes you are ready to share</span></div>

@@ -7,11 +7,25 @@ import {
   sizeOptionsForCategories,
 } from "./garmentOptions";
 import { humanize } from "./types";
+import { authPath, returnPathFromSearch, safeInternalPath, verifyEmailPath } from "./lib/navigation";
 
 describe("display helpers", () => {
   it("turns enum values into readable labels", () => {
     expect(humanize("VERY_GOOD")).toBe("Very good");
     expect(humanize("OUTERWEAR")).toBe("Outerwear");
+  });
+});
+
+describe("account return paths", () => {
+  it("keeps internal destinations through account creation and verification", () => {
+    expect(authPath("signup", "/items/item-1")).toBe("/auth/signup?from=%2Fitems%2Fitem-1");
+    expect(verifyEmailPath("/my/items?add=1")).toBe("/verify-email?from=%2Fmy%2Fitems%3Fadd%3D1");
+    expect(returnPathFromSearch("?from=%2Fitems%2Fitem-1")).toBe("/items/item-1");
+  });
+
+  it("rejects external and protocol-relative return paths", () => {
+    expect(safeInternalPath("https://example.com")).toBe("/browse");
+    expect(safeInternalPath("//example.com")).toBe("/browse");
   });
 });
 
