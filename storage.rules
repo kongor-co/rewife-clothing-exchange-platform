@@ -46,10 +46,12 @@ service firebase.storage {
     }
 
     function canReadItemImage(uid, itemId) {
-      return memberIsActive()
-        ? isItemOwner(uid, itemId)
-          ? uid == request.auth.uid || firestore.get(itemPath(itemId)).data.status == 'AVAILABLE' || exchangeAllowsRead(firestore.get(itemPath(itemId)).data)
-          : false
+      return isItemOwner(uid, itemId)
+        ? firestore.get(itemPath(itemId)).data.status == 'AVAILABLE'
+          ? true
+          : memberIsActive()
+            ? uid == request.auth.uid || exchangeAllowsRead(firestore.get(itemPath(itemId)).data)
+            : false
         : false;
     }
 

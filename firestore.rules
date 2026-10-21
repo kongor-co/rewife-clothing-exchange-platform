@@ -2,7 +2,7 @@ rules_version = '2';
 
 // Assumed data model
 // users/{uid}: public displayName, status, createdAt, updatedAt. No email or private data.
-// clothingItems/{itemId}: owner, validated garment metadata, image paths, state, timestamps.
+// clothingItems/{itemId}: owner, public AVAILABLE garment metadata, image paths, state, timestamps.
 // exchanges/{exchangeId}: participant IDs, item reference, state, consent, resolution data.
 // coinAccounts/{uid}: integer available and reserved balances with timestamps.
 // coinEvents/{eventId}: immutable ledger event with affectedUserIds and optional exchangeId.
@@ -171,9 +171,11 @@ service cloud.firestore {
     }
 
     function canReadItem(data) {
-      return isActiveMember()
-        ? data.status == 'AVAILABLE' || data.ownerId == request.auth.uid || activeExchangeAllowsRead(data)
-        : false;
+      return data.status == 'AVAILABLE'
+        ? true
+        : isActiveMember()
+          ? data.ownerId == request.auth.uid || activeExchangeAllowsRead(data)
+          : false;
     }
 
     match /users/{uid} {

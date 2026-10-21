@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { AddGarmentModal } from "../components/AddGarmentModal";
 import { ItemGallery } from "../components/ItemGallery";
 import { useAuth } from "../context/AuthContext";
@@ -9,12 +9,14 @@ import { clothingItemFromDoc } from "../lib/documents";
 import { readableError } from "../lib/errors";
 import { db } from "../lib/firebase";
 import { resolveImage } from "../lib/images";
+import { authPath, currentReturnPath, verifyEmailPath } from "../lib/navigation";
 import { humanize, type ClothingItem } from "../types";
 
 export function ItemDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [item, setItem] = useState<ClothingItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [images, setImages] = useState<string[]>([]);
@@ -129,8 +131,12 @@ export function ItemDetailPage() {
   }
 
   const isOwner = item.ownerId === user?.uid;
-  const canRequest = item.status === "AVAILABLE" ? !isOwner : false;
+  const availableToClaim = item.status === "AVAILABLE" ? !isOwner : false;
+  const canRequest = availableToClaim ? Boolean(user?.emailVerified) : false;
+  const guestMustJoin = availableToClaim ? !user : false;
+  const memberMustVerify = availableToClaim ? user ? !user.emailVerified : false : false;
   const canManage = isOwner ? ["DRAFT", "AVAILABLE"].includes(item.status) : false;
+  const returnPath = currentReturnPath(location.pathname, location.search);
 
   return (
     <div className="page-container item-detail-page">
@@ -150,8 +156,23 @@ export function ItemDetailPage() {
         {canRequest ? (
           <div className="request-box">
             <label className="checkbox-label"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />If accepted, I agree to share my verified email with the contributor.</label>
-            <button className="button" type="button" disabled={!consent || busy} onClick={requestItem}>{busy ? "Requesting..." : "Request for 1 coin"}</button>
+            <button className="button" type="button" disabled={!consent || busy} onClick={requestItem}>{busy ? "Claiming..." : "Claim for 1 coin"}</button>
             <small>One coin is reserved now. Delivery arrangements stay between you and the contributor.</small>
+          </div>
+        ) : null}
+        {guestMustJoin ? (
+          <div className="request-box guest-claim-box">
+            <h2>Ready to claim it?</h2>
+            <p>Create an account to claim this garment, or sign in if you are already a member.</p>
+            <Link className="button" to={authPath("signup", returnPath)}>Create account to claim</Link>
+            <Link className="button button-secondary" to={authPath("signin", returnPath)}>Sign in</Link>
+          </div>
+        ) : null}
+        {memberMustVerify ? (
+          <div className="request-box guest-claim-box">
+            <h2>Verify your email to claim</h2>
+            <p>Finish setting up your account, then you can claim this garment.</p>
+            <Link className="button" to={verifyEmailPath(returnPath)}>Verify email</Link>
           </div>
         ) : null}
         {canManage ? (

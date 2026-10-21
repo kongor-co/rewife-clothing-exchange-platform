@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { auth } from "../lib/firebase";
 import { readableError } from "../lib/errors";
+import { returnPathFromSearch, safeInternalPath, verifyEmailPath, type AuthMode } from "../lib/navigation";
 
 export function AuthPage() {
   const { user } = useAuth();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const route = useParams();
+  const initialMode: AuthMode = route.mode === "signup" ? "signup" : "signin";
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,9 +19,11 @@ export function AuthPage() {
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const stateFallback = safeInternalPath(location.state?.from);
+  const returnPath = returnPathFromSearch(location.search, stateFallback);
 
   if (user) {
-    return <Navigate to={user.emailVerified ? "/browse" : "/verify-email"} replace />;
+    return <Navigate to={user.emailVerified ? returnPath : verifyEmailPath(returnPath)} replace />;
   }
 
   async function submit(event: FormEvent) {
@@ -31,10 +36,10 @@ export function AuthPage() {
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await updateProfile(credential.user, { displayName: displayName.trim() });
         await sendEmailVerification(credential.user);
-        navigate("/verify-email");
+        navigate(verifyEmailPath(returnPath));
       } else {
         const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-        const destination = credential.user.emailVerified ? (location.state?.from || "/browse") : "/verify-email";
+        const destination = credential.user.emailVerified ? returnPath : verifyEmailPath(returnPath);
         navigate(destination);
       }
     } catch (caught) {

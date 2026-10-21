@@ -41,6 +41,7 @@ h2 { font-size: clamp(1.35rem, 2vw, 2rem); }
 
 .landing-page { min-height: 100vh; overflow: hidden; }
 .landing-header { display: flex; align-items: center; justify-content: space-between; max-width: 1240px; margin: 0 auto; padding: 1.25rem 2rem; }
+.landing-header-actions, .landing-hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; }
 .hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.7fr); gap: 4rem; align-items: center; max-width: 1240px; min-height: 70vh; margin: 0 auto; padding: 5rem 2rem; }
 .hero h1 { max-width: 850px; margin-bottom: 1.5rem; }
 .hero-copy { max-width: 650px; margin-bottom: 2rem; color: var(--muted); font-size: 1.2rem; line-height: 1.65; }
@@ -82,6 +83,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .site-header nav a { position: relative; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0.65rem 0.8rem; border-radius: 0.7rem; color: var(--muted); font-size: 0.9rem; font-weight: 650; text-align: center; text-decoration: none; transition: background 160ms ease, color 160ms ease; }
 .site-header nav a:hover { background: rgba(255, 253, 247, 0.75); color: var(--green); }
 .site-header nav a.active { background: #e5ebe3; color: var(--green); }
+.header-auth-actions { display: flex; grid-column: 3; align-items: center; gap: 0.55rem; }
+.header-auth-link { color: var(--green); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.header-create-account { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0.42rem 0.72rem; border-radius: 999px; background: var(--green); color: white; font-size: 0.76rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.header-create-account:hover { background: var(--green-dark); }
 .sign-out-button { grid-column: 3; min-height: 36px; padding: 0.42rem 0.72rem; border: 1px solid #c5cdc5; border-radius: 999px; background: transparent; color: var(--muted); font-size: 0.76rem; font-weight: 700; cursor: pointer; transition: border-color 160ms ease, color 160ms ease, background 160ms ease; }
 .sign-out-button:hover { border-color: #aab5ac; background: var(--paper); color: var(--green); }
 .sign-out-button:focus-visible, .site-header nav a:focus-visible { outline: 3px solid rgba(27, 90, 72, 0.2); outline-offset: 2px; }
@@ -96,6 +101,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .centered-page { display: grid; min-height: 100vh; place-items: center; padding: 2rem; }
 .narrow-panel, .legal-page { width: min(100%, 650px); }
 .narrow-panel .button { width: 100%; margin-top: 0.75rem; }
+.account-required-page { display: grid; min-height: 65vh; place-items: center; }
+.account-required-panel { width: min(100%, 620px); text-align: center; }
+.account-required-panel h1 { margin-bottom: 1rem; font-size: clamp(2.2rem, 6vw, 4rem); }
+.account-required-panel > p:not(.eyebrow) { max-width: 470px; margin: 0 auto 1.5rem; color: var(--muted); line-height: 1.65; }
+.account-required-actions { display: flex; justify-content: center; gap: 0.8rem; margin-bottom: 1.2rem; }
 .page-state, .empty-state { padding: 5rem 1rem; text-align: center; color: var(--muted); }
 .empty-state { border: 1px dashed #b9c3bb; border-radius: 1rem; }
 
@@ -161,6 +171,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .item-description { margin: 1.5rem 0; color: var(--muted); line-height: 1.65; white-space: pre-line; }
 .request-box { display: grid; gap: 1rem; margin-top: 1.5rem; padding: 1.2rem; border-radius: 1rem; background: #edf2e8; }
 .request-box small { color: var(--muted); line-height: 1.5; }
+.guest-claim-box h2, .guest-claim-box p { margin-bottom: 0; }
+.guest-claim-box p { color: var(--muted); line-height: 1.55; }
 .owner-item-actions { display: grid; gap: 1rem; margin-top: 1.5rem; }
 .owner-action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
 .owner-action-row .button { width: 100%; }
@@ -252,6 +264,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
   .site-header nav { display: grid; grid-column: 1; grid-row: 2; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.25rem; width: 100%; padding: 0; border-right: 0; }
   .site-header nav a { padding: 0.55rem 0.2rem; font-size: 0.78rem; }
   .sign-out-button { padding: 0.35rem 0.65rem; font-size: 0.72rem; }
+  .header-auth-actions { gap: 0.4rem; }
+  .header-auth-link { font-size: 0.72rem; }
+  .header-create-account { min-height: 34px; padding: 0.35rem 0.6rem; font-size: 0.7rem; }
   .page-heading { display: block; }
   .page-heading > p, .page-heading > .button { margin-top: 1rem; }
   .filter-controls, .item-grid, .form-grid { grid-template-columns: 1fr; }
@@ -262,6 +277,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
   .garment-modal { min-height: 100vh; border: 0; border-radius: 0; }
   .modal-actions { flex-direction: column-reverse; }
   .modal-actions .button { width: 100%; }
+  .account-required-actions { flex-direction: column; }
+  .account-required-actions .button { width: 100%; }
   .record-card { align-items: start; flex-direction: column; }
   .record-actions { justify-content: start; }
   .site-footer { flex-direction: column; gap: 1rem; }

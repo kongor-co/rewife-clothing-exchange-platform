@@ -14,18 +14,23 @@ import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
   { path: "/auth", element: <AuthPage /> },
+  { path: "/auth/:mode", element: <AuthPage /> },
   { path: "/verify-email", element: <VerifyEmailPage /> },
   { path: "/privacy", element: <LegalPage /> },
   { path: "/terms", element: <LegalPage /> },
   { path: "/imprint", element: <LegalPage /> },
   {
-    element: <ProtectedRoute />,
+    element: <AppShell />,
     children: [{
-      element: <AppShell />,
+      path: "/browse",
+      element: <BrowsePage />,
+    }, {
+      path: "/items/:id",
+      element: <ItemDetailPage />,
+    }, {
+      element: <ProtectedRoute />,
       children: [
-        { path: "/browse", element: <BrowsePage /> },
         { path: "/items/new", element: <Navigate to="/my/items?add=1" replace /> },
-        { path: "/items/:id", element: <ItemDetailPage /> },
         { path: "/my/items", element: <MyItemsPage /> },
         { path: "/my/exchanges", element: <ExchangesPage /> },
         { path: "/profile", element: <ProfilePage /> },

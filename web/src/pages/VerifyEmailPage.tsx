@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { sendEmailVerification, signOut } from "firebase/auth";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { completeOnboarding } from "../lib/callables";
 import { auth } from "../lib/firebase";
 import { readableError } from "../lib/errors";
+import { authPath, returnPathFromSearch } from "../lib/navigation";
 
 export function VerifyEmailPage() {
   const { user, loading, refreshUser } = useAuth();
@@ -12,12 +13,14 @@ export function VerifyEmailPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnPath = returnPathFromSearch(location.search);
 
   if (loading) {
     return <div className="page-state">Checking your account...</div>;
   }
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to={authPath("signin", returnPath)} replace />;
   }
 
   async function checkVerification() {
@@ -31,7 +34,7 @@ export function VerifyEmailPage() {
         return;
       }
       await completeOnboarding({ displayName: currentUser.displayName || "Member" });
-      navigate("/browse", { replace: true });
+      navigate(returnPath, { replace: true });
     } catch (caught) {
       setError(readableError(caught));
     } finally {

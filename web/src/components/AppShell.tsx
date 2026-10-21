@@ -1,6 +1,8 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
+import { useAuth } from "../context/AuthContext";
 import { auth, useEmulators } from "../lib/firebase";
+import { authPath, currentReturnPath, verifyEmailPath } from "../lib/navigation";
 
 const links = [
   ["/browse", "Browse"],
@@ -10,6 +12,22 @@ const links = [
 ];
 
 export function AppShell() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const returnPath = currentReturnPath(location.pathname, location.search);
+
+  const accountActions = loading ? null : user ? (
+    <div className="header-auth-actions">
+      {user.emailVerified ? null : <NavLink className="header-auth-link" to={verifyEmailPath(returnPath)}>Verify email</NavLink>}
+      <button className="sign-out-button" type="button" onClick={() => signOut(auth)}>Sign out</button>
+    </div>
+  ) : (
+    <div className="header-auth-actions">
+      <NavLink className="header-auth-link" to={authPath("signin", returnPath)}>Sign in</NavLink>
+      <NavLink className="header-create-account" to={authPath("signup", returnPath)}>Create account</NavLink>
+    </div>
+  );
+
   return (
     <div className="app-shell">
       {useEmulators ? <div className="emulator-banner">Local emulator mode</div> : null}
@@ -17,7 +35,7 @@ export function AppShell() {
         <div className="site-header-inner">
           <div className="site-header-top">
             <NavLink className="brand" to="/browse" aria-label="rewife home">rewife</NavLink>
-            <button className="sign-out-button" type="button" onClick={() => signOut(auth)}>Sign out</button>
+            {accountActions}
           </div>
           <nav aria-label="Primary navigation">
             {links.map(([to, label]) => (
