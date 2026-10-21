@@ -85,22 +85,6 @@ export function exchangeStatusLabel(exchange: Exchange, userId: string): string 
   return exchange.status.toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
 }
 
-export function coinMovementLabel(exchange: Exchange, userId: string): string {
-  if (exchange.status === "REQUESTED") {
-    return "1 coin reserved";
-  }
-  if (exchange.status === "ACCEPTED") {
-    return "1 coin held until receipt";
-  }
-  if (exchange.status === "DISPUTED") {
-    return "1 coin remains on hold";
-  }
-  if (exchange.status === "COMPLETED") {
-    return exchange.contributorId === userId ? "+1 coin received" : "1 coin transferred";
-  }
-  return "1 coin returned";
-}
-
 export function exchangeHasContactAccess(exchange: Exchange): boolean {
   return ["ACCEPTED", "DISPUTED", "COMPLETED"].includes(exchange.status);
 }

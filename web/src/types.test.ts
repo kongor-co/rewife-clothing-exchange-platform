@@ -9,7 +9,6 @@ import {
 import { humanize } from "./types";
 import { exchangeActivityLabel, isActionableExchange } from "./lib/exchangeActivity";
 import {
-  coinMovementLabel,
   exchangeHasContactAccess,
   exchangeMatchesFilters,
   exchangeStatusLabel,
@@ -73,11 +72,8 @@ describe("exchange presentation", () => {
     expect(exchangeStatusLabel(completed, "claimant")).toBe("Confirmed received");
   });
 
-  it("describes coin movement and contact availability", () => {
+  it("reveals contact information only after acceptance", () => {
     const accepted = { ...exchangeFixture, status: "ACCEPTED" } as Exchange;
-    const completed = { ...exchangeFixture, status: "COMPLETED" } as Exchange;
-    expect(coinMovementLabel(accepted, "claimant")).toBe("1 coin held until receipt");
-    expect(coinMovementLabel(completed, "contributor")).toBe("+1 coin received");
     expect(exchangeHasContactAccess(exchangeFixture)).toBe(false);
     expect(exchangeHasContactAccess(accepted)).toBe(true);
   });
