@@ -121,7 +121,11 @@ function ExchangeItemSummary({ exchange, label, userId }: { exchange: Exchange; 
   return (
     <div className="exchange-card-main">
       <Link className="exchange-item-image" to={`/items/${exchange.itemId}`} aria-label={`View ${exchange.itemTitle}`}>
-        {imageUrl ? <img src={imageUrl} alt={exchange.itemTitle} onError={() => setImageUrl(null)} /> : <CoinIcon />}
+        {imageUrl ? (
+          <img src={imageUrl} alt={exchange.itemTitle} onError={() => setImageUrl(null)} />
+        ) : (
+          <img className="exchange-item-placeholder" src="/rewife-icon.png" alt="" />
+        )}
       </Link>
       <div className="exchange-card-copy">
         <p className="eyebrow">{label}</p>
