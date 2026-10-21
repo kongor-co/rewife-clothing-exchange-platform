@@ -17,6 +17,7 @@
 }
 
 * { box-sizing: border-box; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; margin: -1px; padding: 0; border: 0; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--cream); }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -80,9 +81,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .site-header-top { display: contents; }
 .site-header .brand { grid-column: 1; }
 .site-header nav { display: flex; grid-column: 2; grid-row: 1; align-items: center; justify-content: end; gap: 0.35rem; padding-right: 1.4rem; border-right: 1px solid var(--line); }
-.site-header nav a { position: relative; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0.65rem 0.8rem; border-radius: 0.7rem; color: var(--muted); font-size: 0.9rem; font-weight: 650; text-align: center; text-decoration: none; transition: background 160ms ease, color 160ms ease; }
+.site-header nav a { position: relative; display: flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 44px; padding: 0.65rem 0.8rem; border-radius: 0.7rem; color: var(--muted); font-size: 0.9rem; font-weight: 650; text-align: center; text-decoration: none; transition: background 160ms ease, color 160ms ease; }
 .site-header nav a:hover { background: rgba(255, 253, 247, 0.75); color: var(--green); }
 .site-header nav a.active { background: #e5ebe3; color: var(--green); }
+.nav-activity-badge { display: inline-grid; min-width: 20px; height: 20px; padding: 0 0.32rem; border: 2px solid var(--cream); border-radius: 999px; place-items: center; background: var(--coral); color: #2f1b15; font-size: 0.66rem; font-weight: 800; line-height: 1; box-shadow: 0 2px 7px rgba(80, 39, 28, 0.18); }
+.site-header nav a.active .nav-activity-badge { border-color: #e5ebe3; }
 .header-auth-actions { display: flex; grid-column: 3; align-items: center; gap: 0.55rem; }
 .header-auth-link { color: var(--green); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
 .header-create-account { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0.42rem 0.72rem; border-radius: 999px; background: var(--green); color: white; font-size: 0.76rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
@@ -265,6 +268,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
   .site-header .brand { font-size: 1.8rem; }
   .site-header nav { display: grid; grid-column: 1; grid-row: 2; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.25rem; width: 100%; padding: 0; border-right: 0; }
   .site-header nav a { padding: 0.55rem 0.2rem; font-size: 0.78rem; }
+  .nav-activity-badge { position: absolute; top: 0.25rem; right: 0.25rem; width: 8px; min-width: 8px; height: 8px; padding: 0; border: 1px solid var(--cream); font-size: 0; box-shadow: none; }
+  .site-header nav a.active .nav-activity-badge { border-color: #e5ebe3; }
   .sign-out-button { padding: 0.35rem 0.65rem; font-size: 0.72rem; }
   .header-auth-actions { gap: 0.4rem; }
   .header-auth-link { font-size: 0.72rem; }

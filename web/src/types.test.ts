@@ -7,12 +7,28 @@ import {
   sizeOptionsForCategories,
 } from "./garmentOptions";
 import { humanize } from "./types";
+import { exchangeActivityLabel, isActionableExchange } from "./lib/exchangeActivity";
 import { authPath, returnPathFromSearch, safeInternalPath, verifyEmailPath } from "./lib/navigation";
 
 describe("display helpers", () => {
   it("turns enum values into readable labels", () => {
     expect(humanize("VERY_GOOD")).toBe("Very good");
     expect(humanize("OUTERWEAR")).toBe("Outerwear");
+  });
+});
+
+describe("exchange activity", () => {
+  it("marks only role-specific actions as actionable", () => {
+    expect(isActionableExchange("REQUESTED", "contributor")).toBe(true);
+    expect(isActionableExchange("REQUESTED", "claimant")).toBe(false);
+    expect(isActionableExchange("ACCEPTED", "claimant")).toBe(true);
+    expect(isActionableExchange("ACCEPTED", "contributor")).toBe(false);
+    expect(isActionableExchange("DISPUTED", "claimant")).toBe(false);
+  });
+
+  it("provides an accessible singular or plural label", () => {
+    expect(exchangeActivityLabel(1)).toBe("1 exchange needs your action");
+    expect(exchangeActivityLabel(3)).toBe("3 exchanges need your action");
   });
 });
 

@@ -25,10 +25,18 @@ export function ProfilePage() {
       const data = snapshot.data() as UserProfile | undefined;
       setProfile(data || null);
       setDisplayName(data?.displayName || user.displayName || "");
-    });
-    const stopAccount = onSnapshot(doc(db, "coinAccounts", user.uid), (snapshot) => setAccount(snapshot.data() as CoinAccount));
+    }, (caught) => setError(readableError(caught)));
+    const stopAccount = onSnapshot(
+      doc(db, "coinAccounts", user.uid),
+      (snapshot) => setAccount(snapshot.exists() ? snapshot.data() as CoinAccount : null),
+      (caught) => setError(readableError(caught)),
+    );
     const eventQuery = query(collection(db, "coinEvents"), where("affectedUserIds", "array-contains", user.uid), orderBy("createdAt", "desc"), limit(25));
-    const stopEvents = onSnapshot(eventQuery, (snapshot) => setEvents(snapshot.docs.map(coinEventFromDoc)));
+    const stopEvents = onSnapshot(
+      eventQuery,
+      (snapshot) => setEvents(snapshot.docs.map(coinEventFromDoc)),
+      (caught) => setError(readableError(caught)),
+    );
     return () => {
       stopProfile();
       stopAccount();

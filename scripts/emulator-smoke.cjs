@@ -63,6 +63,8 @@ async function run() {
   const onboarding = await callFunction("completeOnboarding", signIn.idToken, { displayName });
 
   assert.deepEqual(onboarding.result, { available: 10, reserved: 0 });
+  const onboardingRetry = await callFunction("completeOnboarding", signIn.idToken, { displayName });
+  assert.deepEqual(onboardingRetry.result, { available: 10, reserved: 0 });
 
   const profile = await firestore.collection("users").doc(user.uid).get();
   const account = await firestore.collection("coinAccounts").doc(user.uid).get();
@@ -86,7 +88,7 @@ async function run() {
   };
   const draft = await callFunction("createDraft", signIn.idToken, item);
   const itemId = draft.result.itemId;
-  const imagePath = `itemImages/${user.uid}/${itemId}/smoke.jpg`;
+  const imagePath = `itemImages/${user.uid}/${itemId}/photo-0`;
   const uploadUrl = new URL("http://127.0.0.1:9199/v0/b/demo-rewife.appspot.com/o");
   uploadUrl.searchParams.set("uploadType", "media");
   uploadUrl.searchParams.set("name", imagePath);
@@ -136,12 +138,36 @@ async function run() {
     displayName: "Pilot Claimant",
   });
 
+  await assert.rejects(
+    callFunction("claimItem", signIn.idToken, {
+      itemId,
+      operationId: crypto.randomUUID(),
+      contactDisclosureConsent: true,
+    }),
+    /PERMISSION_DENIED/,
+  );
+
+  const claimOperationId = crypto.randomUUID();
   const claim = await callFunction("claimItem", claimantSignIn.idToken, {
     itemId,
-    operationId: crypto.randomUUID(),
+    operationId: claimOperationId,
     contactDisclosureConsent: true,
   });
   const exchangeId = claim.result.exchangeId;
+  const repeatedClaim = await callFunction("claimItem", claimantSignIn.idToken, {
+    itemId,
+    operationId: claimOperationId,
+    contactDisclosureConsent: true,
+  });
+  assert.equal(repeatedClaim.result.exchangeId, exchangeId);
+  const heldAccount = await firestore.collection("coinAccounts").doc(claimant.uid).get();
+  assert.equal(heldAccount.get("available"), 9);
+  assert.equal(heldAccount.get("reserved"), 1);
+
+  await assert.rejects(
+    callFunction("getExchangeContacts", claimantSignIn.idToken, { exchangeId }),
+    /FAILED_PRECONDITION/,
+  );
   await callFunction("acceptExchange", signIn.idToken, {
     exchangeId,
     contactDisclosureConsent: true,
@@ -151,6 +177,8 @@ async function run() {
   });
   assert.equal(contact.result.counterpartyEmail, email);
   await callFunction("confirmReceived", claimantSignIn.idToken, { exchangeId });
+  const repeatedConfirmation = await callFunction("confirmReceived", claimantSignIn.idToken, { exchangeId });
+  assert.equal(repeatedConfirmation.result.status, "COMPLETED");
 
   const completedExchange = await firestore.collection("exchanges").doc(exchangeId).get();
   const completedItem = await firestore.collection("clothingItems").doc(itemId).get();

@@ -80,6 +80,10 @@ function verifiedDatabase(uid: string) {
   return environment.authenticatedContext(uid, { email_verified: true }).firestore();
 }
 
+function verifiedStorage(uid: string) {
+  return environment.authenticatedContext(uid, { email_verified: true }).storage();
+}
+
 describe("Firestore access boundaries", () => {
   it("allows anonymous access to available garments", async () => {
     const database = environment.unauthenticatedContext().firestore();
@@ -138,6 +142,28 @@ describe("Firestore access boundaries", () => {
     await assertFails(getDoc(doc(verifiedDatabase("unrelated"), "exchanges", "exchange-1")));
   });
 
+  it("allows the activity indicator queries only for the matching participant", async () => {
+    const ownerIncoming = query(
+      collection(verifiedDatabase("owner"), "exchanges"),
+      where("contributorId", "==", "owner"),
+      where("status", "==", "REQUESTED"),
+    );
+    const claimantOutgoing = query(
+      collection(verifiedDatabase("claimant"), "exchanges"),
+      where("claimantId", "==", "claimant"),
+      where("status", "==", "ACCEPTED"),
+    );
+    const unrelatedQuery = query(
+      collection(verifiedDatabase("unrelated"), "exchanges"),
+      where("contributorId", "==", "owner"),
+      where("status", "==", "ACCEPTED"),
+    );
+
+    await assertSucceeds(getDocs(ownerIncoming));
+    await assertSucceeds(getDocs(claimantOutgoing));
+    await assertFails(getDocs(unrelatedQuery));
+  });
+
   it("denies every browser write", async () => {
     const database = verifiedDatabase("owner");
     await assertFails(updateDoc(doc(database, "coinAccounts", "owner"), { available: 999 }));
@@ -155,5 +181,40 @@ describe("Firestore access boundaries", () => {
     const upload = storage.ref("itemImages/owner/item-1/visitor.webp").put(new Uint8Array([1]), { contentType: "image/webp" });
     const result = new Promise((resolve, reject) => upload.then(resolve, reject));
     await assertFails(result);
+  });
+
+  it("allows an owner to use only five validated photo slots", async () => {
+    const storage = verifiedStorage("owner");
+    const validUpload = storage.ref("itemImages/owner/draft-1/photo-0").put(
+      new Uint8Array([1]),
+      { contentType: "image/webp" },
+    );
+    await assertSucceeds(new Promise((resolve, reject) => validUpload.then(resolve, reject)));
+
+    const replacement = storage.ref("itemImages/owner/draft-1/photo-0").put(
+      new Uint8Array([2]),
+      { contentType: "image/png" },
+    );
+    await assertSucceeds(new Promise((resolve, reject) => replacement.then(resolve, reject)));
+
+    const sixthSlot = storage.ref("itemImages/owner/draft-1/photo-5").put(
+      new Uint8Array([1]),
+      { contentType: "image/webp" },
+    );
+    await assertFails(new Promise((resolve, reject) => sixthSlot.then(resolve, reject)));
+  });
+
+  it("rejects invalid image content and uploads from another member", async () => {
+    const invalidType = verifiedStorage("owner").ref("itemImages/owner/draft-1/photo-1").put(
+      new Uint8Array([1]),
+      { contentType: "text/html" },
+    );
+    await assertFails(new Promise((resolve, reject) => invalidType.then(resolve, reject)));
+
+    const wrongOwner = verifiedStorage("claimant").ref("itemImages/owner/draft-1/photo-2").put(
+      new Uint8Array([1]),
+      { contentType: "image/webp" },
+    );
+    await assertFails(new Promise((resolve, reject) => wrongOwner.then(resolve, reject)));
   });
 });

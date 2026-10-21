@@ -53,7 +53,7 @@ Run `npm.cmd run test:smoke` while the complete emulator suite is running.
 
 1. Create an account with email and password.
 2. Use the link produced by the Auth emulator to verify the email.
-3. Finish onboarding and receive the welcome coin balance.
+3. After verification, let the app prepare the member profile and welcome coin balance.
 4. Upload and publish an item.
 5. Use a second account to claim the item.
 6. Accept the request as the owner.
@@ -69,4 +69,5 @@ Credential handling is documented in [docs/CREDENTIALS.md](docs/CREDENTIALS.md).
 - All state transitions and coin changes go through callable Cloud Functions.
 - Item images are owner-scoped and validated by Storage rules.
 - Contact details become available only after an exchange is accepted.
+- The Exchanges navigation badge counts requests that need the current member's action.
 - Legal pages are visible placeholders and require approved text before external testing.

@@ -30,9 +30,13 @@ service firebase.storage {
       return firestore.get(itemPath(itemId)).data.status in ['DRAFT', 'AVAILABLE'];
     }
 
-    function validImage() {
-      return request.resource.size <= 3 * 1024 * 1024
-        ? request.resource.contentType.matches('image/(jpeg|png|webp)')
+    function validImage(fileName) {
+      return fileName.matches('photo-[0-4]')
+        ? request.resource.size > 0
+          ? request.resource.size <= 3 * 1024 * 1024
+            ? request.resource.contentType.matches('image/(jpeg|png|webp)')
+            : false
+          : false
         : false;
     }
 
@@ -61,7 +65,7 @@ service firebase.storage {
         ? request.auth.uid == uid
           ? isItemOwner(uid, itemId)
             ? itemAcceptsUpload(itemId)
-              ? validImage()
+              ? validImage(fileName)
               : false
             : false
           : false
@@ -73,7 +77,15 @@ service firebase.storage {
             : false
           : false
         : false;
-      allow update: if false;
+      allow update: if memberIsActive()
+        ? request.auth.uid == uid
+          ? isItemOwner(uid, itemId)
+            ? itemAcceptsUpload(itemId)
+              ? validImage(fileName)
+              : false
+            : false
+          : false
+        : false;
     }
 
     match /{allPaths=**} {

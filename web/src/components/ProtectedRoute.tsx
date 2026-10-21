@@ -3,7 +3,7 @@ import { AccountRequired } from "./AccountRequired";
 import { useAuth } from "../context/AuthContext";
 
 export function ProtectedRoute() {
-  const { user, loading } = useAuth();
+  const { user, loading, memberReady, memberError } = useAuth();
   if (loading) {
     return <div className="page-state">Checking your session...</div>;
   }
@@ -12,6 +12,12 @@ export function ProtectedRoute() {
   }
   if (!user.emailVerified) {
     return <Navigate to="/verify-email" replace />;
+  }
+  if (memberError) {
+    return <div className="page-state"><p className="alert alert-error">{memberError}</p></div>;
+  }
+  if (!memberReady) {
+    return <div className="page-state">Preparing your account...</div>;
   }
   return <Outlet />;
 }

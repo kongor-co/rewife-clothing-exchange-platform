@@ -46,6 +46,16 @@ function fileKey(file: File): string {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
+function availablePhotoSlots(paths: string[]): number[] {
+  const occupiedSlots = new Set(
+    paths.flatMap((path) => {
+      const match = path.match(/\/photo-([0-4])$/);
+      return match ? [Number(match[1])] : [];
+    }),
+  );
+  return [0, 1, 2, 3, 4].filter((slot) => !occupiedSlots.has(slot));
+}
+
 export function AddGarmentModal({ item: existingItem, onClose, onSaved }: AddGarmentModalProps) {
   const { user } = useAuth();
   const [item, setItem] = useState<ItemInput>(() => itemToInput(existingItem));
@@ -167,9 +177,9 @@ export function AddGarmentModal({ item: existingItem, onClose, onSaved }: AddGar
         itemId = draft.data.itemId;
       }
       const imagePaths = [...existingImagePaths];
-      for (const file of files) {
-        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `itemImages/${user.uid}/${itemId}/${crypto.randomUUID()}.${extension}`;
+      const photoSlots = availablePhotoSlots(existingImagePaths);
+      for (const [fileIndex, file] of files.entries()) {
+        const path = `itemImages/${user.uid}/${itemId}/photo-${photoSlots[fileIndex]}`;
         imagePaths.push(path);
         setProgress(`Uploading new photo ${imagePaths.length - existingImagePaths.length} of ${files.length}...`);
         await uploadBytes(ref(storage, path), file, { contentType: file.type });

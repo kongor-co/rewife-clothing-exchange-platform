@@ -2,7 +2,6 @@ import { useState } from "react";
 import { sendEmailVerification, signOut } from "firebase/auth";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { completeOnboarding } from "../lib/callables";
 import { auth } from "../lib/firebase";
 import { readableError } from "../lib/errors";
 import { authPath, returnPathFromSearch } from "../lib/navigation";
@@ -33,7 +32,6 @@ export function VerifyEmailPage() {
         setMessage("Your email is not verified yet. Open the link in the verification email, then try again.");
         return;
       }
-      await completeOnboarding({ displayName: currentUser.displayName || "Member" });
       navigate(returnPath, { replace: true });
     } catch (caught) {
       setError(readableError(caught));
