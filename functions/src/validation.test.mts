@@ -25,6 +25,12 @@ describe("MVP input validation", () => {
     expect(() => itemInputSchema.parse({ ...validItem, description: "x".repeat(501) })).toThrow();
   });
 
+  it("accepts only category-appropriate garment sizes", () => {
+    expect(itemInputSchema.parse({ ...validItem, category: "SHOES", size: "EU 40.5" }).size).toBe("EU 40.5");
+    expect(() => itemInputSchema.parse({ ...validItem, category: "SHOES", size: "M" })).toThrow();
+    expect(() => itemInputSchema.parse({ ...validItem, size: "Custom size" })).toThrow();
+  });
+
   it("validates display names", () => {
     expect(displayNameSchema.parse("  Riley  ")).toBe("Riley");
     expect(() => displayNameSchema.parse("x".repeat(51))).toThrow();
