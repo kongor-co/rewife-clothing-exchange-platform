@@ -63,9 +63,13 @@ export const claimItem = onCall({ region }, async (request) => {
       throw new HttpsError("resource-exhausted", "You do not have an available coin.");
     }
     const contributorId = itemSnapshot.get("ownerId") as string;
+    const imagePaths = itemSnapshot.get("imagePaths") as string[];
     transaction.create(exchangeRef, {
       itemId: itemSnapshot.id,
       itemTitle: itemSnapshot.get("title") as string,
+      itemSize: itemSnapshot.get("size") as string,
+      itemMainFabric: itemSnapshot.get("mainFabric") as string,
+      itemImagePath: imagePaths[0] || null,
       contributorId,
       claimantId: identity.uid,
       status: "REQUESTED",
@@ -139,6 +143,9 @@ export const acceptExchange = onCall({ region }, async (request) => {
     }
     transaction.update(exchangeRef, {
       status: "ACCEPTED",
+      itemSize: itemSnapshot.get("size") as string,
+      itemMainFabric: itemSnapshot.get("mainFabric") as string,
+      itemImagePath: (itemSnapshot.get("imagePaths") as string[])[0] || null,
       "consentFlags.contributorContactDisclosure": true,
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -270,7 +277,7 @@ export const confirmReceived = onCall({ region }, async (request) => {
       throw new HttpsError("data-loss", "The garment reservation does not match this exchange.");
     }
     transaction.update(exchangeRef, { status: "COMPLETED", updatedAt: FieldValue.serverTimestamp() });
-    transaction.update(itemRef, { status: "EXCHANGED", activeExchangeId: null, updatedAt: FieldValue.serverTimestamp() });
+    transaction.update(itemRef, { status: "EXCHANGED", activeExchangeId: exchangeId, updatedAt: FieldValue.serverTimestamp() });
     transaction.update(claimantRef, { reserved: reserved - 1, updatedAt: FieldValue.serverTimestamp() });
     transaction.update(contributorRef, {
       available: (contributorSnapshot.get("available") as number) + 1,
