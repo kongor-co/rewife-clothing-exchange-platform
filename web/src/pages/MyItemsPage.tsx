@@ -59,8 +59,13 @@ export function MyItemsPage() {
   }
 
   return (
-    <div className="page-container">
-      <section className="page-heading wardrobe-heading"><div><p className="eyebrow">Your contributions</p><h1>Your wardrobe</h1></div><button className="button" type="button" onClick={() => setAddGarmentOpen(true)}>Add garment</button></section>
+    <div className="page-container wardrobe-page">
+      <section className="compact-page-toolbar wardrobe-toolbar">
+        <p className="eyebrow">Your contributions</p>
+        <button className="button" type="button" onClick={() => setAddGarmentOpen(true)}>
+          Add garment
+        </button>
+      </section>
       {error ? <p className="alert alert-error">{error}</p> : null}
       {loading ? <div className="page-state">Loading your wardrobe...</div> : null}
       {!loading ? items.length === 0 ? <div className="empty-state"><h2>No garments yet</h2><p>Add a piece you are ready to pass forward.</p></div> : null : null}

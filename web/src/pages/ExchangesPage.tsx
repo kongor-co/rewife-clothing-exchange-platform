@@ -71,8 +71,13 @@ export function ExchangesPage() {
   }
 
   return (
-    <div className="page-container">
-      <section className="page-heading"><div><p className="eyebrow">Requests and handovers</p><h1>My exchanges</h1></div><p>Coins move only after the recipient confirms actual receipt.</p></section>
+    <div className="page-container exchanges-page">
+      <section className="compact-page-toolbar exchanges-toolbar">
+        <div>
+          <p className="eyebrow">Requests and handovers</p>
+          <p className="toolbar-note">Coins move only after the recipient confirms actual receipt.</p>
+        </div>
+      </section>
       {error ? <p className="alert alert-error">{error}</p> : null}
       {exchanges.length === 0 ? <div className="empty-state"><h2>No exchanges yet</h2><p>Request an available garment or wait for someone to request yours.</p></div> : null}
       <section className="record-list">

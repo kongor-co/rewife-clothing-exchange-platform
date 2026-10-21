@@ -97,6 +97,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .page-heading { display: flex; align-items: end; justify-content: space-between; gap: 2rem; margin-bottom: 2.5rem; }
 .page-heading h1 { margin-bottom: 0; font-size: clamp(2.7rem, 6vw, 4.8rem); }
 .page-heading > p { max-width: 430px; margin-bottom: 0.5rem; color: var(--muted); line-height: 1.6; }
+.catalog-page, .wardrobe-page, .exchanges-page { padding-top: 2.25rem; }
+.compact-page-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 46px; margin-bottom: 1rem; }
+.compact-page-toolbar .eyebrow { margin: 0; }
+.toolbar-note { margin: 0.35rem 0 0; color: var(--muted); line-height: 1.5; }
+.wardrobe-toolbar { margin-bottom: 1.4rem; }
 .panel { padding: 2rem; border: 1px solid var(--line); border-radius: 1.4rem; background: var(--paper); box-shadow: var(--shadow); }
 .centered-page { display: grid; min-height: 100vh; place-items: center; padding: 2rem; }
 .narrow-panel, .legal-page { width: min(100%, 650px); }
@@ -109,10 +114,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .page-state, .empty-state { padding: 5rem 1rem; text-align: center; color: var(--muted); }
 .empty-state { border: 1px dashed #b9c3bb; border-radius: 1rem; }
 
-.filters { display: grid; gap: 1rem; margin-bottom: 2rem; padding: 1.25rem; border: 1px solid var(--line); border-radius: 1rem; background: rgba(255, 253, 247, 0.75); }
-.filters-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.filters-heading h2 { margin: 0; font-family: system-ui, sans-serif; font-size: 1rem; }
-.filters-heading p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.8rem; }
+.filters { display: grid; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; border: 1px solid var(--line); border-radius: 1rem; background: rgba(255, 253, 247, 0.75); }
 .filter-clear-all, .filter-clear { padding: 0; border: 0; background: transparent; color: var(--green); font-size: 0.8rem; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .filter-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .multi-select-filter { position: relative; display: grid; gap: 0.45rem; min-width: 0; }
@@ -269,6 +271,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
   .header-create-account { min-height: 34px; padding: 0.35rem 0.6rem; font-size: 0.7rem; }
   .page-heading { display: block; }
   .page-heading > p, .page-heading > .button { margin-top: 1rem; }
+  .catalog-page, .wardrobe-page, .exchanges-page { padding-top: 1.4rem; }
+  .compact-page-toolbar { min-height: 42px; margin-bottom: 0.8rem; }
+  .wardrobe-toolbar .button { min-height: 42px; padding: 0.65rem 1rem; }
+  .toolbar-note { font-size: 0.88rem; }
   .filter-controls, .item-grid, .form-grid { grid-template-columns: 1fr; }
   .filter-menu { position: static; margin-top: -0.1rem; }
   .existing-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

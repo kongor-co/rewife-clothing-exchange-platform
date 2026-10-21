@@ -76,16 +76,12 @@ export function BrowsePage() {
   }
 
   return (
-    <div className="page-container">
-      <section className="page-heading browse-heading">
-        <div><p className="eyebrow">The shared wardrobe</p><h1>Find your next favorite piece</h1></div>
-        <p>Every garment costs one coin. Arrange the handover directly with its contributor.</p>
+    <div className="page-container catalog-page">
+      <section className="compact-page-toolbar">
+        <p className="eyebrow">The shared wardrobe</p>
+        {activeFilterCount > 0 ? <button className="filter-clear-all" type="button" onClick={clearFilters}>Clear all filters</button> : null}
       </section>
       <section className="filters" aria-label="Catalog filters">
-        <div className="filters-heading">
-          <div><h2>Filter garments</h2><p>{visibleItems.length} {visibleItems.length === 1 ? "garment" : "garments"}</p></div>
-          {activeFilterCount > 0 ? <button className="filter-clear-all" type="button" onClick={clearFilters}>Clear all</button> : null}
-        </div>
         <div className="filter-controls">
           <MultiSelectFilter label="Category" options={categories} selected={selectedCategories} onChange={setSelectedCategories} formatOption={humanize} />
           <MultiSelectFilter label="Condition" options={conditions} selected={selectedConditions} onChange={setSelectedConditions} formatOption={humanize} />
