@@ -6,7 +6,6 @@ import { acceptExchange, cancelRequestedExchange, confirmReceived, getExchangeCo
 import { clothingItemFromDoc, exchangeFromDoc } from "../lib/documents";
 import { readableError } from "../lib/errors";
 import {
-  coinMovementLabel,
   exchangeDirection,
   exchangeHasContactAccess,
   exchangeMatchesFilters,
@@ -28,14 +27,6 @@ interface ExchangeItemDetails {
   size: string;
   mainFabric: Fabric | undefined;
   imagePath: string | null;
-}
-
-function CoinIcon({ compact = false }: { compact?: boolean }) {
-  return (
-    <span className={compact ? "exchange-coin-icon compact" : "exchange-coin-icon"} aria-hidden="true">
-      <span>1</span>
-    </span>
-  );
 }
 
 function ExchangeContact({ exchangeId }: { exchangeId: string }) {
@@ -258,19 +249,15 @@ export function ExchangesPage() {
           return (
             <article className="record-card exchange-card" key={exchange.id}>
               <ExchangeItemSummary exchange={exchange} label={direction === "INCOMING" ? "Incoming request" : "Your request"} userId={user?.uid || ""} />
-              <div className="exchange-card-support">
-                <div className="exchange-coin-movement">
-                  <CoinIcon compact />
-                  <span>{coinMovementLabel(exchange, user?.uid || "")}</span>
-                </div>
+              <div className="exchange-card-footer">
                 {exchangeHasContactAccess(exchange) ? <ExchangeContact exchangeId={exchange.id} /> : <p className="exchange-contact-hint">Contact details appear after acceptance.</p>}
-              </div>
-              <div className="record-actions">
-                {isContributor ? exchange.status === "REQUESTED" ? <button className="button" disabled={isBusy} onClick={() => perform(exchange, "accept")}>Accept and share email</button> : null : null}
-                {isContributor ? exchange.status === "REQUESTED" ? <button className="button button-secondary" disabled={isBusy} onClick={() => perform(exchange, "reject")}>Reject</button> : null : null}
-                {isClaimant ? exchange.status === "REQUESTED" ? <button className="button button-secondary" disabled={isBusy} onClick={() => perform(exchange, "cancel")}>Cancel request</button> : null : null}
-                {isClaimant ? exchange.status === "ACCEPTED" ? <button className="button" disabled={isBusy} onClick={() => perform(exchange, "complete")}>Confirm received</button> : null : null}
-                {["ACCEPTED"].includes(exchange.status) ? <button className="text-action danger" disabled={isBusy} onClick={() => perform(exchange, "dispute")}>Report a problem</button> : null}
+                <div className="record-actions">
+                  {isContributor ? exchange.status === "REQUESTED" ? <button className="button" disabled={isBusy} onClick={() => perform(exchange, "accept")}>Accept and share email</button> : null : null}
+                  {isContributor ? exchange.status === "REQUESTED" ? <button className="button button-secondary" disabled={isBusy} onClick={() => perform(exchange, "reject")}>Reject</button> : null : null}
+                  {isClaimant ? exchange.status === "REQUESTED" ? <button className="button button-secondary" disabled={isBusy} onClick={() => perform(exchange, "cancel")}>Cancel request</button> : null : null}
+                  {isClaimant ? exchange.status === "ACCEPTED" ? <button className="button" disabled={isBusy} onClick={() => perform(exchange, "complete")}>Confirm received</button> : null : null}
+                  {["ACCEPTED"].includes(exchange.status) ? <button className="text-action danger" disabled={isBusy} onClick={() => perform(exchange, "dispute")}>Report a problem</button> : null}
+                </div>
               </div>
             </article>
           );
