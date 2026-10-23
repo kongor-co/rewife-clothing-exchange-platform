@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { useSearchParams } from "react-router-dom";
 import { ItemCard } from "../components/ItemCard";
 import { MultiSelectFilter } from "../components/MultiSelectFilter";
+import { useAuth } from "../context/AuthContext";
 import { sizeOptionsForCategories } from "../garmentOptions";
 import { clothingItemFromDoc } from "../lib/documents";
 import { db } from "../lib/firebase";
@@ -17,6 +19,8 @@ import {
 } from "../types";
 
 export function BrowsePage() {
+  const { user, loading: authLoading, memberReady } = useAuth();
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<ClothingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -43,6 +47,8 @@ export function BrowsePage() {
 
   const sizeOptions = useMemo(() => sizeOptionsForCategories(selectedCategories), [selectedCategories]);
   const activeFilterCount = selectedCategories.length + selectedConditions.length + selectedFabrics.length + selectedSizes.length;
+  const verificationState = searchParams.get("verification");
+  const verificationComplete = verificationState === "complete";
 
   const visibleItems = useMemo(() => items.filter((item) => {
     if (selectedCategories.length > 0) {
@@ -77,6 +83,16 @@ export function BrowsePage() {
 
   return (
     <div className="page-container catalog-page">
+      {verificationState === "sent" ? (
+        <p className="alert alert-info" role="status">Verification email sent. You can keep browsing while you check your inbox.</p>
+      ) : null}
+      {verificationComplete ? authLoading || user && !memberReady ? (
+        <p className="alert alert-info" role="status">Finishing your verified account setup...</p>
+      ) : user?.emailVerified && memberReady ? (
+        <p className="alert alert-success" role="status">Email verified. Your ten welcome coins are ready.</p>
+      ) : (
+        <p className="alert alert-info" role="status">Email verification finished. Sign in to finish setting up your account.</p>
+      ) : null}
       <section className="compact-page-toolbar">
         <p className="eyebrow">The shared wardrobe</p>
         {activeFilterCount > 0 ? <button className="filter-clear-all" type="button" onClick={clearFilters}>Clear all filters</button> : null}

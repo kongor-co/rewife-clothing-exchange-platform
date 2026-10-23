@@ -2,9 +2,10 @@ import { useState, type FormEvent } from "react";
 import { createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { emailVerificationActionCodeSettings } from "../lib/emailVerification";
 import { auth } from "../lib/firebase";
 import { readableError } from "../lib/errors";
-import { returnPathFromSearch, safeInternalPath, verifyEmailPath, type AuthMode } from "../lib/navigation";
+import { returnPathFromSearch, safeInternalPath, type AuthMode } from "../lib/navigation";
 
 export function AuthPage() {
   const { user } = useAuth();
@@ -23,7 +24,7 @@ export function AuthPage() {
   const returnPath = returnPathFromSearch(location.search, stateFallback);
 
   if (user) {
-    return <Navigate to={user.emailVerified ? returnPath : verifyEmailPath(returnPath)} replace />;
+    return <Navigate to={returnPath} replace />;
   }
 
   async function submit(event: FormEvent) {
@@ -35,12 +36,11 @@ export function AuthPage() {
       if (mode === "signup") {
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
         await updateProfile(credential.user, { displayName: displayName.trim() });
-        await sendEmailVerification(credential.user);
-        navigate(verifyEmailPath(returnPath));
+        await sendEmailVerification(credential.user, emailVerificationActionCodeSettings());
+        navigate("/browse?verification=sent", { replace: true });
       } else {
         const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-        const destination = credential.user.emailVerified ? returnPath : verifyEmailPath(returnPath);
-        navigate(destination);
+        navigate(returnPath);
       }
     } catch (caught) {
       setError(readableError(caught));
