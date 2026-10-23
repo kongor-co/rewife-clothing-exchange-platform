@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { onIdTokenChanged, reload, type User } from "firebase/auth";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { onAuthStateChanged, reload, type User } from "firebase/auth";
 import { completeOnboarding } from "../lib/callables";
 import { readableError } from "../lib/errors";
 import { auth } from "../lib/firebase";
@@ -9,7 +9,6 @@ interface AuthState {
   loading: boolean;
   memberReady: boolean;
   memberError: string;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -19,6 +18,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [memberReady, setMemberReady] = useState(false);
   const [memberError, setMemberError] = useState("");
+  const verificationSyncing = useRef(false);
 
   const prepareVerifiedMember = useCallback(async (currentUser: User) => {
     if (!currentUser.emailVerified) {
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let authRevision = 0;
-    return onIdTokenChanged(auth, (nextUser) => {
+    return onAuthStateChanged(auth, (nextUser) => {
       const currentRevision = ++authRevision;
       setUser(nextUser);
       setMemberReady(false);
@@ -43,11 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
-
       setLoading(true);
-      prepareVerifiedMember(nextUser)
+      nextUser.getIdToken(true)
+        .then(() => prepareVerifiedMember(nextUser))
         .then(() => {
           if (authRevision === currentRevision && auth.currentUser?.uid === nextUser.uid) {
+            setUser(auth.currentUser);
             setMemberReady(true);
           }
         })
@@ -64,36 +65,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [prepareVerifiedMember]);
 
-  async function refreshUser() {
-    if (!auth.currentUser) {
-      return;
-    }
-    await reload(auth.currentUser);
-    await auth.currentUser.getIdToken(true);
+  const synchronizeVerification = useCallback(async () => {
     const currentUser = auth.currentUser;
-    setUser(currentUser);
-    if (!currentUser.emailVerified) {
-      setMemberReady(false);
+    if (!currentUser || currentUser.emailVerified || verificationSyncing.current) {
       return;
     }
-
-    setLoading(true);
-    setMemberError("");
+    verificationSyncing.current = true;
     try {
-      await prepareVerifiedMember(currentUser);
-      if (auth.currentUser?.uid === currentUser.uid) {
-        setMemberReady(true);
+      await reload(currentUser);
+      const refreshedUser = auth.currentUser;
+      if (refreshedUser?.emailVerified) {
+        setLoading(true);
+        setMemberReady(false);
+        setMemberError("");
+        setUser(refreshedUser);
+        await refreshedUser.getIdToken(true);
+        await prepareVerifiedMember(refreshedUser);
+        if (auth.currentUser?.uid === refreshedUser.uid) {
+          setUser(auth.currentUser);
+          setMemberReady(true);
+        }
       }
     } catch (caught) {
       setMemberError(readableError(caught));
-      throw caught;
     } finally {
       setLoading(false);
+      verificationSyncing.current = false;
     }
-  }
+  }, [prepareVerifiedMember]);
+
+  useEffect(() => {
+    if (user && !user.emailVerified) {
+      void synchronizeVerification().catch(() => undefined);
+    }
+  }, [synchronizeVerification, user?.uid]);
+
+  useEffect(() => {
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void synchronizeVerification().catch(() => undefined);
+      }
+    }
+
+    window.addEventListener("focus", synchronizeVerification);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", synchronizeVerification);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [synchronizeVerification]);
 
   const value = useMemo(
-    () => ({ user, loading, memberReady, memberError, refreshUser }),
+    () => ({ user, loading, memberReady, memberError }),
     [user, loading, memberReady, memberError],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

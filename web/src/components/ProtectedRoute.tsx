@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { AccountRequired } from "./AccountRequired";
 import { useAuth } from "../context/AuthContext";
 
 export function ProtectedRoute() {
   const { user, loading, memberReady, memberError } = useAuth();
+  const location = useLocation();
   if (loading) {
     return <div className="page-state">Checking your session...</div>;
   }
@@ -11,7 +12,7 @@ export function ProtectedRoute() {
     return <AccountRequired />;
   }
   if (!user.emailVerified) {
-    return <Navigate to="/verify-email" replace />;
+    return location.pathname === "/profile" ? <Outlet /> : <Navigate to="/profile" replace />;
   }
   if (memberError) {
     return <div className="page-state"><p className="alert alert-error">{memberError}</p></div>;

@@ -37,11 +37,44 @@ async function callFunction(name, idToken, data) {
   return readJson(response);
 }
 
+async function signInWithPassword(email, password) {
+  const response = await fetch(
+    "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-key",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+    },
+  );
+  return readJson(response);
+}
+
 async function run() {
   const suffix = process.env.SMOKE_SUFFIX || Date.now();
   const email = `pilot-${suffix}@example.test`;
   const password = `Pilot-${suffix}-pass`;
   const displayName = "Pilot Tester";
+
+  const unverifiedEmail = `unverified-${suffix}@example.test`;
+  const unverifiedPassword = `Unverified-${suffix}-pass`;
+  const unverifiedUser = await auth.createUser({
+    displayName: "Unverified Tester",
+    email: unverifiedEmail,
+    emailVerified: false,
+    password: unverifiedPassword,
+  });
+  const unverifiedSignIn = await signInWithPassword(unverifiedEmail, unverifiedPassword);
+  await assert.rejects(
+    callFunction("completeOnboarding", unverifiedSignIn.idToken, { displayName: "Unverified Tester" }),
+    /FAILED_PRECONDITION/,
+  );
+  const accountBeforeVerification = await firestore.collection("coinAccounts").doc(unverifiedUser.uid).get();
+  assert.equal(accountBeforeVerification.exists, false);
+
+  await auth.updateUser(unverifiedUser.uid, { emailVerified: true });
+  const verifiedSignIn = await signInWithPassword(unverifiedEmail, unverifiedPassword);
+  const verifiedOnboarding = await callFunction("completeOnboarding", verifiedSignIn.idToken, { displayName: "Unverified Tester" });
+  assert.deepEqual(verifiedOnboarding.result, { available: 10, reserved: 0 });
 
   const user = await auth.createUser({
     displayName,

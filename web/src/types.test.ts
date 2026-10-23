@@ -8,12 +8,13 @@ import {
 } from "./garmentOptions";
 import { humanize } from "./types";
 import { exchangeActivityLabel, isActionableExchange } from "./lib/exchangeActivity";
+import { verificationContinueUrl } from "./lib/emailVerification";
 import {
   exchangeHasContactAccess,
   exchangeMatchesFilters,
   exchangeStatusLabel,
 } from "./lib/exchangePresentation";
-import { authPath, returnPathFromSearch, safeInternalPath, verifyEmailPath } from "./lib/navigation";
+import { authPath, returnPathFromSearch, safeInternalPath } from "./lib/navigation";
 import type { Exchange } from "./types";
 
 const exchangeFixture = {
@@ -80,10 +81,15 @@ describe("exchange presentation", () => {
 });
 
 describe("account return paths", () => {
-  it("keeps internal destinations through account creation and verification", () => {
+  it("keeps internal destinations through account creation", () => {
     expect(authPath("signup", "/items/item-1")).toBe("/auth/signup?from=%2Fitems%2Fitem-1");
-    expect(verifyEmailPath("/my/items?add=1")).toBe("/verify-email?from=%2Fmy%2Fitems%3Fadd%3D1");
     expect(returnPathFromSearch("?from=%2Fitems%2Fitem-1")).toBe("/items/item-1");
+  });
+
+  it("returns email verification to Browse", () => {
+    expect(verificationContinueUrl("https://ordinal-bucksaw-512007-p8.web.app")).toBe(
+      "https://ordinal-bucksaw-512007-p8.web.app/browse?verification=complete",
+    );
   });
 
   it("rejects external and protocol-relative return paths", () => {

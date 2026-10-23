@@ -280,6 +280,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--green); box-shad
 .alert-error { background: #f9ddd6; color: #7e2d21; }
 .alert-success { background: #dcebd5; color: #2f5c2e; }
 .alert-info { background: #e4ece8; color: #294b41; }
+.alert-warning { background: #fff0c7; color: #694b08; }
+.verification-notice { display: grid; gap: 0.3rem; margin: 1.5rem 0; }
 
 @media (max-width: 900px) {
   .hero, .auth-layout, .item-detail-page, .profile-grid { grid-template-columns: 1fr; }

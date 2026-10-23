@@ -21,10 +21,6 @@ export function authPath(mode: AuthMode, returnPath: string): string {
   return `/auth/${mode}?from=${encodeURIComponent(safeInternalPath(returnPath))}`;
 }
 
-export function verifyEmailPath(returnPath: string): string {
-  return `/verify-email?from=${encodeURIComponent(safeInternalPath(returnPath))}`;
-}
-
 export function returnPathFromSearch(search: string, fallback = "/browse"): string {
   return safeInternalPath(new URLSearchParams(search).get("from"), fallback);
 }

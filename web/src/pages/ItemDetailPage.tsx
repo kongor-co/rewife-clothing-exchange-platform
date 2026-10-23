@@ -9,7 +9,7 @@ import { clothingItemFromDoc } from "../lib/documents";
 import { readableError } from "../lib/errors";
 import { db } from "../lib/firebase";
 import { resolveImage } from "../lib/images";
-import { authPath, currentReturnPath, verifyEmailPath } from "../lib/navigation";
+import { authPath, currentReturnPath } from "../lib/navigation";
 import { humanize, type ClothingItem } from "../types";
 
 export function ItemDetailPage() {
@@ -171,8 +171,8 @@ export function ItemDetailPage() {
         {memberMustVerify ? (
           <div className="request-box guest-claim-box">
             <h2>Verify your email to claim</h2>
-            <p>Finish setting up your account, then you can claim this garment.</p>
-            <Link className="button" to={verifyEmailPath(returnPath)}>Verify email</Link>
+            <p>Open the verification link sent to your email. You can resend it from your profile.</p>
+            <Link className="button" to="/profile">Go to profile</Link>
           </div>
         ) : null}
         {canManage ? (

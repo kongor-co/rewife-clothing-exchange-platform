@@ -9,13 +9,12 @@ import { ItemDetailPage } from "./pages/ItemDetailPage";
 import { LegalPage } from "./pages/LegalPage";
 import { MyItemsPage } from "./pages/MyItemsPage";
 import { ProfilePage } from "./pages/ProfilePage";
-import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 
 const router = createBrowserRouter([
   { path: "/", element: <HomePage /> },
   { path: "/auth", element: <AuthPage /> },
   { path: "/auth/:mode", element: <AuthPage /> },
-  { path: "/verify-email", element: <VerifyEmailPage /> },
+  { path: "/verify-email", element: <Navigate to="/profile" replace /> },
   { path: "/privacy", element: <LegalPage /> },
   { path: "/terms", element: <LegalPage /> },
   { path: "/imprint", element: <LegalPage /> },

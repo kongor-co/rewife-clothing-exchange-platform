@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useExchangeActivityCount } from "../hooks/useExchangeActivityCount";
 import { exchangeActivityLabel } from "../lib/exchangeActivity";
 import { auth, useEmulators } from "../lib/firebase";
-import { authPath, currentReturnPath, verifyEmailPath } from "../lib/navigation";
+import { authPath, currentReturnPath } from "../lib/navigation";
 
 const links: Array<{ to: string; label: string; showsActivity?: boolean }> = [
   { to: "/browse", label: "Browse" },
@@ -22,7 +22,6 @@ export function AppShell() {
 
   const accountActions = loading ? null : user ? (
     <div className="header-auth-actions">
-      {user.emailVerified ? null : <NavLink className="header-auth-link" to={verifyEmailPath(returnPath)}>Verify email</NavLink>}
       <button className="sign-out-button" type="button" onClick={() => signOut(auth)}>Sign out</button>
     </div>
   ) : (
