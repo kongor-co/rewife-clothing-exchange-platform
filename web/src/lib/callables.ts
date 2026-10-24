@@ -2,12 +2,17 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
 import type { ItemInput } from "../types";
 
-export const completeOnboarding = httpsCallable<{ displayName: string }, { available: number; reserved: number }>(
+export const completeOnboarding = httpsCallable<{ username: string }, { available: number; reserved: number }>(
   functions,
   "completeOnboarding",
 );
 
-export const updateProfile = httpsCallable<{ displayName: string }, { displayName: string }>(
+export const reserveUsername = httpsCallable<{ username: string }, { username: string }>(
+  functions,
+  "reserveUsername",
+);
+
+export const updateProfile = httpsCallable<{ username: string }, { username: string; displayName: string }>(
   functions,
   "updateProfile",
 );

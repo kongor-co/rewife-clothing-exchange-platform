@@ -6,10 +6,18 @@ const messages: Record<string, string> = {
   "auth/invalid-email": "Enter a valid email address.",
   "auth/weak-password": "Use a password with at least six characters.",
   "functions/email-unverified": "Verify your email address before continuing.",
+  "functions/already-exists": "This username is already in use. Choose another username.",
   "functions/failed-precondition": "This action is not available in the current state.",
   "functions/permission-denied": "You do not have permission to perform this action.",
   "functions/resource-exhausted": "There are not enough available coins for this request.",
 };
+
+export function isUsernameTakenError(error: unknown): boolean {
+  if (!(error instanceof FirebaseError)) {
+    return false;
+  }
+  return error.code === "functions/already-exists";
+}
 
 export function readableError(error: unknown): string {
   if (error instanceof FirebaseError) {

@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { createUserWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, deleteUser, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, updateProfile, type User } from "firebase/auth";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { emailVerificationActionCodeSettings } from "../lib/emailVerification";
 import { auth } from "../lib/firebase";
-import { readableError } from "../lib/errors";
+import { isUsernameTakenError, readableError } from "../lib/errors";
+import { reserveUsername } from "../lib/callables";
 import { returnPathFromSearch, safeInternalPath, type AuthMode } from "../lib/navigation";
 
 export function AuthPage() {
@@ -12,7 +13,7 @@ export function AuthPage() {
   const route = useParams();
   const initialMode: AuthMode = route.mode === "signup" ? "signup" : "signin";
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -32,10 +33,13 @@ export function AuthPage() {
     setBusy(true);
     setError("");
     setMessage("");
+    let createdUser: User | null = null;
     try {
       if (mode === "signup") {
         const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-        await updateProfile(credential.user, { displayName: displayName.trim() });
+        createdUser = credential.user;
+        await reserveUsername({ username: username.trim() });
+        await updateProfile(credential.user, { displayName: username.trim() });
         await sendEmailVerification(credential.user, emailVerificationActionCodeSettings());
         navigate("/browse?verification=sent", { replace: true });
       } else {
@@ -43,6 +47,16 @@ export function AuthPage() {
         navigate(returnPath);
       }
     } catch (caught) {
+      if (createdUser) {
+        if (isUsernameTakenError(caught)) {
+          try {
+            await deleteUser(createdUser);
+          } catch {
+            setError("This username is already in use. Sign out before trying another email address.");
+            return;
+          }
+        }
+      }
       setError(readableError(caught));
     } finally {
       setBusy(false);
@@ -79,7 +93,7 @@ export function AuthPage() {
         <h2>{mode === "signin" ? "Welcome back" : "Join rewife"}</h2>
         <form onSubmit={submit}>
           {mode === "signup" ? (
-            <label>Display name<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} minLength={2} maxLength={50} required /></label>
+            <label>Username<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} minLength={2} maxLength={50} required /></label>
           ) : null}
           <label>Email<input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label>
           <label>Password<input type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} required /></label>

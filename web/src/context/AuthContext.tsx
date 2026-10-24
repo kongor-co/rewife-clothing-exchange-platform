@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    await completeOnboarding({ displayName: currentUser.displayName || "Member" });
+    await completeOnboarding({ username: currentUser.displayName || "Member" });
   }, []);
 
   useEffect(() => {

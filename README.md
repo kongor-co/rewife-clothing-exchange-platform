@@ -51,7 +51,7 @@ Run `npm.cmd run test:smoke` while the complete emulator suite is running.
 
 ## Pilot flow
 
-1. Create an account with email and password.
+1. Create an account with a unique username, email, and password.
 2. Use the link produced by the Auth emulator to verify the email.
 3. After verification, let the app prepare the member profile and welcome coin balance.
 4. Upload and publish an item.
@@ -66,6 +66,7 @@ Credential handling is documented in [docs/CREDENTIALS.md](docs/CREDENTIALS.md).
 ## Important boundaries
 
 - Browser clients cannot write directly to Firestore.
+- Usernames are case-insensitively unique. Firebase UID remains the immutable internal account key.
 - All state transitions and coin changes go through callable Cloud Functions.
 - Item images are owner-scoped and validated by Storage rules.
 - Contact details become available only after an exchange is accepted.
