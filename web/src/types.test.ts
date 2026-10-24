@@ -8,6 +8,7 @@ import {
 } from "./garmentOptions";
 import { humanize } from "./types";
 import { exchangeActivityLabel, isActionableExchange } from "./lib/exchangeActivity";
+import { formatActiveFilterSummary } from "./lib/catalogFilters";
 import { verificationContinueUrl } from "./lib/emailVerification";
 import {
   exchangeHasContactAccess,
@@ -38,6 +39,16 @@ describe("display helpers", () => {
   it("turns enum values into readable labels", () => {
     expect(humanize("VERY_GOOD")).toBe("Very good");
     expect(humanize("OUTERWEAR")).toBe("Outerwear");
+  });
+
+  it("formats active catalog filters as compact groups", () => {
+    expect(formatActiveFilterSummary([
+      ["Dress", "Outerwear"],
+      ["Very good", "Good"],
+      ["Linen"],
+      ["XS", "S"],
+    ])).toBe("dress, outerwear - very good, good - linen - xs, s");
+    expect(formatActiveFilterSummary([[], ["Good"], [], []])).toBe("good");
   });
 });
 

@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 interface MultiSelectFilterProps<T extends string> {
   label: string;
+  mobileLabel?: string;
   options: readonly T[];
   selected: readonly T[];
   onChange: (values: T[]) => void;
@@ -12,6 +13,7 @@ interface MultiSelectFilterProps<T extends string> {
 
 export function MultiSelectFilter<T extends string>({
   label,
+  mobileLabel = label,
   options,
   selected,
   onChange,
@@ -67,7 +69,7 @@ export function MultiSelectFilter<T extends string>({
     }}>
       <span className="filter-label">{label}</span>
       <button
-        className="filter-trigger"
+        className={`filter-trigger${open ? " open" : ""}${selected.length > 0 ? " has-selection" : ""}`}
         type="button"
         aria-controls={listId}
         aria-expanded={open}
@@ -79,6 +81,7 @@ export function MultiSelectFilter<T extends string>({
           }
         }}
       >
+        <span className="filter-trigger-label">{mobileLabel}</span>
         <span className="filter-trigger-value" title={selected.map(formatOption).join(", ")}>{selectionSummary}</span>
         <span className="filter-chevron" aria-hidden="true">⌄</span>
       </button>
@@ -113,9 +116,15 @@ export function MultiSelectFilter<T extends string>({
               );
             }) : <p className="filter-no-options">No matching sizes</p>}
           </div>
-          {selected.length > 0 ? (
-            <button className="filter-clear" type="button" onClick={() => onChange([])}>Clear selection</button>
-          ) : null}
+          <div className={`filter-menu-actions${selected.length === 0 ? " selection-empty" : ""}`}>
+            {selected.length > 0 ? (
+              <button className="filter-clear" type="button" onClick={() => onChange([])}>Clear selection</button>
+            ) : null}
+            <button className="filter-done" type="button" onClick={() => {
+              setOpen(false);
+              setSearch("");
+            }}>Done</button>
+          </div>
         </div>
       ) : null}
     </div>
