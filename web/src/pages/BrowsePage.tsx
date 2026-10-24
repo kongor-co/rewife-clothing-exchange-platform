@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { sizeOptionsForCategories } from "../garmentOptions";
 import { clothingItemFromDoc } from "../lib/documents";
 import { db } from "../lib/firebase";
+import { formatActiveFilterSummary } from "../lib/catalogFilters";
 import {
   categories,
   conditions,
@@ -47,6 +48,12 @@ export function BrowsePage() {
 
   const sizeOptions = useMemo(() => sizeOptionsForCategories(selectedCategories), [selectedCategories]);
   const activeFilterCount = selectedCategories.length + selectedConditions.length + selectedFabrics.length + selectedSizes.length;
+  const activeFilterSummary = formatActiveFilterSummary([
+    selectedCategories.map(humanize),
+    selectedConditions.map(humanize),
+    selectedFabrics.map(humanize),
+    selectedSizes,
+  ]);
   const verificationState = searchParams.get("verification");
   const verificationComplete = verificationState === "complete";
 
@@ -101,9 +108,10 @@ export function BrowsePage() {
         <div className="filter-controls">
           <MultiSelectFilter label="Category" options={categories} selected={selectedCategories} onChange={setSelectedCategories} formatOption={humanize} />
           <MultiSelectFilter label="Condition" options={conditions} selected={selectedConditions} onChange={setSelectedConditions} formatOption={humanize} />
-          <MultiSelectFilter label="Main fabric" options={fabrics} selected={selectedFabrics} onChange={setSelectedFabrics} formatOption={humanize} searchable searchPlaceholder="Search fabrics" />
+          <MultiSelectFilter label="Main fabric" mobileLabel="Fabric" options={fabrics} selected={selectedFabrics} onChange={setSelectedFabrics} formatOption={humanize} searchable searchPlaceholder="Search fabrics" />
           <MultiSelectFilter label="Size" options={sizeOptions} selected={selectedSizes} onChange={setSelectedSizes} searchable searchPlaceholder="Search EU sizes" />
         </div>
+        {activeFilterSummary ? <p className="active-filter-summary" aria-live="polite">{activeFilterSummary}</p> : null}
       </section>
       {loading ? <div className="page-state">Loading garments...</div> : null}
       {error ? <p className="alert alert-error">{error}</p> : null}
