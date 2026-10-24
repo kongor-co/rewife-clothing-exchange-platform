@@ -1,7 +1,9 @@
 rules_version = '2';
 
 // Assumed data model
-// users/{uid}: public displayName, status, createdAt, updatedAt. No email or private data.
+// users/{uid}: owner-readable username, usernameKey, status, createdAt, updatedAt. No email or private data.
+// usernames/{usernameKey}: private server-managed case-insensitive username registry.
+// usernameClaims/{uid}: private server-managed link from an Auth UID to its username registry entry.
 // clothingItems/{itemId}: current owner, public AVAILABLE garment metadata, image paths, state, timestamps, exchange links.
 // exchanges/{exchangeId}: participant IDs, item reference, state, consent, resolution data.
 // coinAccounts/{uid}: integer available and reserved balances with timestamps.
@@ -67,14 +69,18 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(data, ['displayName', 'status', 'createdAt', 'updatedAt'])
-        ? hasRequiredFields(data, ['displayName', 'status', 'createdAt', 'updatedAt'])
+      return hasOnlyAllowedFields(data, ['displayName', 'usernameKey', 'status', 'createdAt', 'updatedAt'])
+        ? hasRequiredFields(data, ['displayName', 'usernameKey', 'status', 'createdAt', 'updatedAt'])
           ? data.displayName is string
             ? data.displayName.size() >= 2
               ? data.displayName.size() <= 50
-                ? data.status in ['ACTIVE', 'SUSPENDED', 'DEACTIVATED']
-                  ? data.createdAt is timestamp
-                    ? data.updatedAt is timestamp
+                ? data.usernameKey is string
+                  ? data.usernameKey.matches('^[a-f0-9]{64}$')
+                    ? data.status in ['ACTIVE', 'SUSPENDED', 'DEACTIVATED']
+                      ? data.createdAt is timestamp
+                        ? data.updatedAt is timestamp
+                        : false
+                      : false
                     : false
                   : false
                 : false
@@ -212,6 +218,14 @@ service cloud.firestore {
         ? isOwner(uid)
         : false;
       allow create, update, delete: if false;
+    }
+
+    match /usernames/{usernameKey} {
+      allow read, write: if false;
+    }
+
+    match /usernameClaims/{uid} {
+      allow read, write: if false;
     }
 
     match /clothingItems/{itemId} {

@@ -95,6 +95,7 @@ export interface CoinEvent {
 
 export interface UserProfile {
   displayName: string;
+  usernameKey?: string;
   status: "ACTIVE" | "SUSPENDED" | "DEACTIVATED";
   createdAt: Timestamp;
   updatedAt: Timestamp;

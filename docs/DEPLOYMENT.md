@@ -36,6 +36,18 @@ npx.cmd -y firebase-tools@latest use ordinal-bucksaw-512007-p8
 npx.cmd -y firebase-tools@latest deploy --only "auth,firestore,storage,functions" --project ordinal-bucksaw-512007-p8
 ```
 
+### Callable invoker policy
+
+The organization policy on this project rejects `allUsers` IAM bindings. Existing callable services use the supported Cloud Run setting that disables the platform invoker check. Firebase callable authentication still rejects unauthenticated requests before application logic runs.
+
+When a newly created callable reports `Unable to set the invoker`, apply the same setting to its lowercase Cloud Run service name:
+
+```powershell
+gcloud.cmd run services update FUNCTION_SERVICE_NAME --region=europe-west3 --project=ordinal-bucksaw-512007-p8 --no-invoker-iam-check
+```
+
+Verify the callable with an unauthenticated request. A Firebase JSON `401` response is expected. A Cloud Run HTML `403` response means the service is still blocked before Firebase can authenticate it.
+
 ## Hosting preview
 
 Create a temporary public preview that uses the production backend:

@@ -64,8 +64,9 @@ async function run() {
     password: unverifiedPassword,
   });
   const unverifiedSignIn = await signInWithPassword(unverifiedEmail, unverifiedPassword);
+  await callFunction("reserveUsername", unverifiedSignIn.idToken, { username: "Unverified Tester" });
   await assert.rejects(
-    callFunction("completeOnboarding", unverifiedSignIn.idToken, { displayName: "Unverified Tester" }),
+    callFunction("completeOnboarding", unverifiedSignIn.idToken, { username: "Unverified Tester" }),
     /FAILED_PRECONDITION/,
   );
   const accountBeforeVerification = await firestore.collection("coinAccounts").doc(unverifiedUser.uid).get();
@@ -73,7 +74,7 @@ async function run() {
 
   await auth.updateUser(unverifiedUser.uid, { emailVerified: true });
   const verifiedSignIn = await signInWithPassword(unverifiedEmail, unverifiedPassword);
-  const verifiedOnboarding = await callFunction("completeOnboarding", verifiedSignIn.idToken, { displayName: "Unverified Tester" });
+  const verifiedOnboarding = await callFunction("completeOnboarding", verifiedSignIn.idToken, { username: "Unverified Tester" });
   assert.deepEqual(verifiedOnboarding.result, { available: 10, reserved: 0 });
 
   const user = await auth.createUser({
@@ -93,10 +94,11 @@ async function run() {
   );
   const signIn = await readJson(signInResponse);
 
-  const onboarding = await callFunction("completeOnboarding", signIn.idToken, { displayName });
+  await callFunction("reserveUsername", signIn.idToken, { username: displayName });
+  const onboarding = await callFunction("completeOnboarding", signIn.idToken, { username: displayName });
 
   assert.deepEqual(onboarding.result, { available: 10, reserved: 0 });
-  const onboardingRetry = await callFunction("completeOnboarding", signIn.idToken, { displayName });
+  const onboardingRetry = await callFunction("completeOnboarding", signIn.idToken, { username: displayName });
   assert.deepEqual(onboardingRetry.result, { available: 10, reserved: 0 });
 
   const profile = await firestore.collection("users").doc(user.uid).get();
@@ -104,10 +106,25 @@ async function run() {
   const event = await firestore.collection("coinEvents").doc(`welcome_${user.uid}`).get();
 
   assert.equal(profile.get("displayName"), displayName);
+  assert.match(profile.get("usernameKey"), /^[a-f0-9]{64}$/);
   assert.equal(profile.get("status"), "ACTIVE");
   assert.equal(account.get("available"), 10);
   assert.equal(account.get("reserved"), 0);
   assert.equal(event.get("kind"), "WELCOME_ISSUED");
+
+  const duplicateEmail = `duplicate-${suffix}@example.test`;
+  const duplicatePassword = `Duplicate-${suffix}-pass`;
+  await auth.createUser({
+    displayName: "pILOT tESTER",
+    email: duplicateEmail,
+    emailVerified: false,
+    password: duplicatePassword,
+  });
+  const duplicateSignIn = await signInWithPassword(duplicateEmail, duplicatePassword);
+  await assert.rejects(
+    callFunction("reserveUsername", duplicateSignIn.idToken, { username: "pILOT tESTER" }),
+    /ALREADY_EXISTS/,
+  );
 
   const item = {
     title: "Smoke test shirt",
@@ -146,6 +163,10 @@ async function run() {
   assert.equal(savedItem.get("status"), "AVAILABLE");
   assert.deepEqual(savedItem.get("imagePaths"), [imagePath]);
 
+  await callFunction("updateProfile", signIn.idToken, { username: "Pilot Contributor" });
+  const renamedItem = await firestore.collection("clothingItems").doc(itemId).get();
+  assert.equal(renamedItem.get("ownerDisplayName"), "Pilot Contributor");
+
   const claimantEmail = `claimant-${suffix}@example.test`;
   const claimantPassword = `Claimant-${suffix}-pass`;
   const claimant = await auth.createUser({
@@ -167,8 +188,9 @@ async function run() {
     },
   );
   const claimantSignIn = await readJson(claimantSignInResponse);
+  await callFunction("reserveUsername", claimantSignIn.idToken, { username: "Pilot Claimant" });
   await callFunction("completeOnboarding", claimantSignIn.idToken, {
-    displayName: "Pilot Claimant",
+    username: "Pilot Claimant",
   });
 
   await assert.rejects(

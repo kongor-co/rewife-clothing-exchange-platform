@@ -8,7 +8,17 @@ export const fabricSchema = z.enum([
   "POLYESTER", "POLYAMIDE", "ACRYLIC", "ELASTANE", "MIXED", "OTHER", "UNKNOWN",
 ]);
 
-export const displayNameSchema = z.string().trim().min(2).max(50);
+export const usernameSchema = z.string()
+  .transform((value) => value.trim().normalize("NFKC"))
+  .pipe(
+    z.string()
+      .min(2, "Use at least two characters for your username.")
+      .max(50, "Use no more than 50 characters for your username.")
+      .refine((value) => !/[\p{Cc}\p{Cf}]/u.test(value), "The username contains unsupported characters."),
+  );
+
+// Retained for older deployed clients while the username API rolls out.
+export const displayNameSchema = usernameSchema;
 
 export const itemInputSchema = z.object({
   title: z.string().trim().min(3).max(80),

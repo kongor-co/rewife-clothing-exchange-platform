@@ -9,14 +9,11 @@ export interface MemberIdentity {
   displayName: string;
 }
 
-export async function requireVerifiedIdentity(auth: CallableAuth): Promise<MemberIdentity> {
+export async function requireAuthenticatedIdentity(auth: CallableAuth): Promise<MemberIdentity> {
   if (!auth) {
     throw new HttpsError("unauthenticated", "Sign in to continue.");
   }
   const user = await adminAuth.getUser(auth.uid);
-  if (!user.emailVerified) {
-    throw new HttpsError("failed-precondition", "email-unverified");
-  }
   if (user.disabled) {
     throw new HttpsError("permission-denied", "This account is disabled.");
   }
@@ -28,6 +25,15 @@ export async function requireVerifiedIdentity(auth: CallableAuth): Promise<Membe
     email: user.email,
     displayName: user.displayName || "Member",
   };
+}
+
+export async function requireVerifiedIdentity(auth: CallableAuth): Promise<MemberIdentity> {
+  const identity = await requireAuthenticatedIdentity(auth);
+  const user = await adminAuth.getUser(identity.uid);
+  if (!user.emailVerified) {
+    throw new HttpsError("failed-precondition", "email-unverified");
+  }
+  return identity;
 }
 
 export async function requireActiveMember(auth: CallableAuth): Promise<MemberIdentity> {

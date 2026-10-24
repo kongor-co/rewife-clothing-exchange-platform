@@ -1,12 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { collection, doc, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
-import { sendEmailVerification, updateProfile as updateAuthProfile } from "firebase/auth";
+import { sendEmailVerification } from "firebase/auth";
 import { useAuth } from "../context/AuthContext";
 import { updateProfile } from "../lib/callables";
 import { coinEventFromDoc } from "../lib/documents";
 import { emailVerificationActionCodeSettings } from "../lib/emailVerification";
 import { readableError } from "../lib/errors";
-import { auth, db } from "../lib/firebase";
+import { db } from "../lib/firebase";
 import { humanize, type CoinAccount, type CoinEvent, type UserProfile } from "../types";
 
 export function ProfilePage() {
@@ -14,7 +14,7 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [account, setAccount] = useState<CoinAccount | null>(null);
   const [events, setEvents] = useState<CoinEvent[]>([]);
-  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [verificationBusy, setVerificationBusy] = useState(false);
@@ -27,7 +27,7 @@ export function ProfilePage() {
     const stopProfile = onSnapshot(doc(db, "users", user.uid), (snapshot) => {
       const data = snapshot.data() as UserProfile | undefined;
       setProfile(data || null);
-      setDisplayName(data?.displayName || user.displayName || "");
+      setUsername(data?.displayName || user.displayName || "");
     }, (caught) => setError(readableError(caught)));
     const stopAccount = onSnapshot(
       doc(db, "coinAccounts", user.uid),
@@ -52,10 +52,7 @@ export function ProfilePage() {
     setError("");
     setMessage("");
     try {
-      await updateProfile({ displayName: displayName.trim() });
-      if (auth.currentUser) {
-        await updateAuthProfile(auth.currentUser, { displayName: displayName.trim() });
-      }
+      await updateProfile({ username: username.trim() });
       setMessage("Profile updated.");
     } catch (caught) {
       setError(readableError(caught));
@@ -117,7 +114,7 @@ export function ProfilePage() {
           <div><strong>{account?.reserved ?? 0}</strong><span>Reserved coins</span></div>
         </div>
         <form onSubmit={save}>
-          <label>Display name<input value={displayName} minLength={2} maxLength={50} onChange={(event) => setDisplayName(event.target.value)} required /></label>
+          <label>Username<input autoComplete="username" value={username} minLength={2} maxLength={50} onChange={(event) => setUsername(event.target.value)} required /></label>
           {message ? <p className="alert alert-success">{message}</p> : null}
           {error ? <p className="alert alert-error">{error}</p> : null}
           <button className="button">Save profile</button>

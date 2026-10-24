@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { displayNameSchema, itemInputSchema, operationDocumentId, operationIdSchema } from "./validation";
+import { itemInputSchema, operationDocumentId, operationIdSchema, usernameSchema } from "./validation";
+import { usernameIdentity } from "./usernames";
 
 const validItem = {
   title: "Blue linen shirt",
@@ -31,9 +32,15 @@ describe("MVP input validation", () => {
     expect(() => itemInputSchema.parse({ ...validItem, size: "Custom size" })).toThrow();
   });
 
-  it("validates display names", () => {
-    expect(displayNameSchema.parse("  Riley  ")).toBe("Riley");
-    expect(() => displayNameSchema.parse("x".repeat(51))).toThrow();
+  it("validates and normalizes usernames", () => {
+    expect(usernameSchema.parse("  Riley  ")).toBe("Riley");
+    expect(usernameSchema.parse("Ａｄｍｉｎ")).toBe("Admin");
+    expect(() => usernameSchema.parse("x".repeat(51))).toThrow();
+  });
+
+  it("uses one case-insensitive registry key for username variants", () => {
+    const keys = ["Admin", "admin", "ADMIN", "adMIN"].map((value) => usernameIdentity(value).usernameKey);
+    expect(new Set(keys).size).toBe(1);
   });
 
   it("accepts UUID operation identifiers", () => {

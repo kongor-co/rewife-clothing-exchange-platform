@@ -7,7 +7,13 @@ import { collection, doc, getDoc, getDocs, orderBy, query, setDoc, Timestamp, up
 let environment: RulesTestEnvironment;
 
 const now = Timestamp.now();
-const profile = { displayName: "Test member", status: "ACTIVE", createdAt: now, updatedAt: now };
+const profile = {
+  displayName: "Test member",
+  usernameKey: "a".repeat(64),
+  status: "ACTIVE",
+  createdAt: now,
+  updatedAt: now,
+};
 const item = {
   ownerId: "owner",
   ownerDisplayName: "Owner",
@@ -47,6 +53,20 @@ beforeEach(async () => {
       setDoc(doc(database, "users", "owner"), profile),
       setDoc(doc(database, "users", "claimant"), { ...profile, displayName: "Claimant" }),
       setDoc(doc(database, "users", "unrelated"), { ...profile, displayName: "Unrelated" }),
+      setDoc(doc(database, "usernames", "a".repeat(64)), {
+        uid: "owner",
+        username: "Test member",
+        normalizedUsername: "test member",
+        createdAt: now,
+        updatedAt: now,
+      }),
+      setDoc(doc(database, "usernameClaims", "owner"), {
+        username: "Test member",
+        normalizedUsername: "test member",
+        usernameKey: "a".repeat(64),
+        createdAt: now,
+        updatedAt: now,
+      }),
       setDoc(doc(database, "coinAccounts", "owner"), { available: 10, reserved: 0, createdAt: now, updatedAt: now }),
       setDoc(doc(database, "clothingItems", "item-1"), item),
       setDoc(doc(database, "clothingItems", "draft-1"), { ...item, status: "DRAFT", publishedAt: null }),
@@ -140,6 +160,8 @@ describe("Firestore access boundaries", () => {
     await assertFails(getDoc(doc(database, "users", "owner")));
     await assertFails(getDoc(doc(database, "coinAccounts", "owner")));
     await assertFails(getDoc(doc(database, "exchanges", "exchange-1")));
+    await assertFails(getDoc(doc(database, "usernames", "a".repeat(64))));
+    await assertFails(getDoc(doc(database, "usernameClaims", "owner")));
   });
 
   it("allows active verified members to query available garments", async () => {
